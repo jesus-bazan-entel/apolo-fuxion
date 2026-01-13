@@ -1,5 +1,6 @@
 import html2canvas from 'html2canvas';
 import jsPDF from 'jspdf';
+import { uploadPDFToStorage, isFirebaseConfigured } from '../firebase';
 
 export async function generatePDF(elementId, filename = 'recomendacion-fuxion.pdf') {
     const element = document.getElementById(elementId);
@@ -8,7 +9,6 @@ export async function generatePDF(elementId, filename = 'recomendacion-fuxion.pd
         return null;
     }
 
-    // A4 dimensions in mm
     const a4Width = 210;
     const a4Height = 297;
     const margin = 10;
@@ -69,44 +69,37 @@ export function downloadPDF(pdfFile) {
     URL.revokeObjectURL(url);
 }
 
-// Convert File to base64 for API upload
-export async function fileToBase64(file) {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.readAsDataURL(file);
-        reader.onload = () => {
-            // Remove the data:application/pdf;base64, prefix
-            const base64 = reader.result.split(',')[1];
-            resolve(base64);
-        };
-        reader.onerror = error => reject(error);
-    });
+// Shorten URL using TinyURL (free API, no key needed)
+async function shortenUrl(longUrl) {
+    try {
+        const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
+        if (response.ok) {
+            const shortUrl = await response.text();
+            // Verify it's a valid TinyURL response
+            if (shortUrl.startsWith('https://tinyurl.com/')) {
+                return shortUrl;
+            }
+        }
+    } catch (error) {
+        console.warn('URL shortening failed:', error);
+    }
+    return longUrl; // Return original if shortening fails
 }
 
 // Upload PDF to Firebase Storage and get short URL
 export async function uploadPDFAndGetLink(pdfFile, clientName) {
+    if (!isFirebaseConfigured()) {
+        throw new Error('Firebase no está configurado');
+    }
+
     try {
-        const base64Data = await fileToBase64(pdfFile);
+        // Upload to Firebase Storage
+        const downloadURL = await uploadPDFToStorage(pdfFile, clientName);
 
-        const response = await fetch('/api/upload-pdf', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                pdfBase64: base64Data,
-                filename: pdfFile.name,
-                clientName: clientName
-            }),
-        });
+        // Shorten the URL
+        const shortUrl = await shortenUrl(downloadURL);
 
-        if (!response.ok) {
-            const error = await response.json();
-            throw new Error(error.error || 'Error uploading PDF');
-        }
-
-        const result = await response.json();
-        return result.shortUrl || result.url;
+        return shortUrl;
     } catch (error) {
         console.error('Upload error:', error);
         throw error;

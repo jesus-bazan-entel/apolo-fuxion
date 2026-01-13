@@ -1,5 +1,6 @@
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import { getStorage, ref, uploadBytes, getDownloadURL } from 'firebase/storage';
 import {
     getAuth,
     signInWithEmailAndPassword,
@@ -28,6 +29,7 @@ export const isFirebaseConfigured = () => {
 let app = null;
 let db = null;
 let auth = null;
+let storage = null;
 let googleProvider = null;
 
 try {
@@ -35,13 +37,14 @@ try {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
+        storage = getStorage(app);
         googleProvider = new GoogleAuthProvider();
     }
 } catch (error) {
     console.warn('Firebase initialization error:', error.message);
 }
 
-export { db, auth };
+export { db, auth, storage };
 
 // Email/Password Auth
 export async function loginWithEmail(email, password) {
@@ -73,4 +76,25 @@ export function onAuthChange(callback) {
         return () => { };
     }
     return onAuthStateChanged(auth, callback);
+}
+
+// Upload PDF to Firebase Storage and get URL
+export async function uploadPDFToStorage(pdfBlob, clientName) {
+    if (!storage) throw new Error('Firebase Storage no está configurado');
+
+    const timestamp = Date.now();
+    const safeName = (clientName || 'cliente').toLowerCase().replace(/[^a-z0-9]/g, '-');
+    const fileName = `pdfs/${timestamp}-${safeName}.pdf`;
+
+    const storageRef = ref(storage, fileName);
+
+    // Upload the blob
+    await uploadBytes(storageRef, pdfBlob, {
+        contentType: 'application/pdf'
+    });
+
+    // Get the download URL
+    const downloadURL = await getDownloadURL(storageRef);
+
+    return downloadURL;
 }
