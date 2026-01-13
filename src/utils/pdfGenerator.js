@@ -8,37 +8,51 @@ export async function generatePDF(elementId, filename = 'recomendacion-fuxion.pd
         return null;
     }
 
+    // A4 dimensions in mm
+    const a4Width = 210;
+    const a4Height = 297;
+    const margin = 10; // 10mm margin
+    const contentWidth = a4Width - (margin * 2);
+
     try {
+        // Temporarily set element width for better A4 rendering
+        const originalWidth = element.style.width;
+        element.style.width = '595px'; // A4 width in pixels at 72 DPI
+
         // Capture the element as canvas
         const canvas = await html2canvas(element, {
             scale: 2, // Higher quality
             useCORS: true,
             allowTaint: true,
             backgroundColor: '#ffffff',
-            logging: false
+            logging: false,
+            windowWidth: 595
         });
+
+        // Restore original width
+        element.style.width = originalWidth;
 
         const imgData = canvas.toDataURL('image/png');
 
-        // Calculate dimensions for PDF
-        const imgWidth = 210; // A4 width in mm
-        const pageHeight = 297; // A4 height in mm
+        // Calculate dimensions maintaining aspect ratio
+        const imgWidth = contentWidth;
         const imgHeight = (canvas.height * imgWidth) / canvas.width;
+        const pageContentHeight = a4Height - (margin * 2);
 
         const pdf = new jsPDF('p', 'mm', 'a4');
         let heightLeft = imgHeight;
-        let position = 0;
+        let position = margin;
 
         // Add first page
-        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pageHeight;
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+        heightLeft -= pageContentHeight;
 
         // Add additional pages if needed
         while (heightLeft > 0) {
-            position = heightLeft - imgHeight;
             pdf.addPage();
-            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-            heightLeft -= pageHeight;
+            position = margin - (imgHeight - heightLeft);
+            pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+            heightLeft -= pageContentHeight;
         }
 
         // Return as blob for sharing
