@@ -125,10 +125,9 @@ export async function sharePDFViaWhatsApp(pdfFile, clientName, clientPhone, advi
 
         msg += `\n\n_Powered by REXILIENCIA_`;
 
-        // Open WhatsApp
+        // Open WhatsApp directly (location.href opens native app on mobile)
         const cleanPhone = (clientPhone || '').replace(/[\s\-\(\)\+]/g, '');
-        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
+        window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
 
         return { success: true, url: shortUrl };
     } catch (error) {
