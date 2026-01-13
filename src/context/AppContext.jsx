@@ -13,6 +13,7 @@ export function AppProvider({ children }) {
             gender: '',
         },
         goal: '',
+        goals: [],
         conditions: [],
         results: null
     });
