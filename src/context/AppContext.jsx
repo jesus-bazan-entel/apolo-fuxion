@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect } from 'react';
-import { db, auth, isFirebaseConfigured, signInAnon } from '../firebase';
-import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy } from 'firebase/firestore';
+import { db, isFirebaseConfigured, onAuthChange, logout as firebaseLogout } from '../firebase';
+import { collection, addDoc, getDocs, deleteDoc, doc, query, orderBy, setDoc, getDoc } from 'firebase/firestore';
 
 const AppContext = createContext();
 
@@ -26,24 +26,26 @@ export function AppProvider({ children }) {
     });
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [authChecked, setAuthChecked] = useState(false);
 
-    // Initialize auth and load data
+    // Listen to auth state changes
     useEffect(() => {
-        async function init() {
-            // Try Firebase first
-            if (isFirebaseConfigured()) {
-                const firebaseUser = await signInAnon();
-                if (firebaseUser) {
-                    setUser(firebaseUser);
-                    await loadHistoryFromFirebase(firebaseUser.uid);
-                }
-            } else {
-                // Fallback to localStorage
+        const unsubscribe = onAuthChange(async (firebaseUser) => {
+            setUser(firebaseUser);
+
+            if (firebaseUser && isFirebaseConfigured()) {
+                // User logged in - load their data from Firebase
+                await loadUserData(firebaseUser.uid);
+            } else if (localStorage.getItem('fuxion_demo_mode')) {
+                // Demo mode - use localStorage
                 loadFromLocalStorage();
             }
+
             setLoading(false);
-        }
-        init();
+            setAuthChecked(true);
+        });
+
+        return () => unsubscribe();
     }, []);
 
     const loadFromLocalStorage = () => {
@@ -52,10 +54,23 @@ export function AppProvider({ children }) {
 
         const savedAdvisor = localStorage.getItem('fuxion_advisor');
         if (savedAdvisor) setAdvisorProfile(JSON.parse(savedAdvisor));
+
+        // Load name from registration if exists
+        const savedName = localStorage.getItem('fuxion_advisor_name');
+        if (savedName && !advisorProfile.name) {
+            setAdvisorProfile(prev => ({ ...prev, name: savedName }));
+        }
     };
 
-    const loadHistoryFromFirebase = async (userId) => {
+    const loadUserData = async (userId) => {
         try {
+            // Load advisor profile
+            const profileDoc = await getDoc(doc(db, 'users', userId, 'profile', 'main'));
+            if (profileDoc.exists()) {
+                setAdvisorProfile(profileDoc.data());
+            }
+
+            // Load consultations history
             const q = query(
                 collection(db, 'users', userId, 'consultations'),
                 orderBy('date', 'desc')
@@ -67,18 +82,26 @@ export function AppProvider({ children }) {
             }));
             setHistory(items);
         } catch (error) {
-            console.error('Error loading from Firebase:', error);
+            console.error('Error loading user data:', error);
             loadFromLocalStorage();
         }
     };
 
-    const saveAdvisorProfile = (data) => {
+    const saveAdvisorProfile = async (data) => {
         setAdvisorProfile(data);
         localStorage.setItem('fuxion_advisor', JSON.stringify(data));
+
+        // Save to Firebase if logged in
+        if (user && isFirebaseConfigured()) {
+            try {
+                await setDoc(doc(db, 'users', user.uid, 'profile', 'main'), data);
+            } catch (error) {
+                console.error('Error saving profile to Firebase:', error);
+            }
+        }
     };
 
     const saveConsultation = async (resultData) => {
-        // Update current state immediately
         const updatedConsultation = {
             ...currentConsultation,
             results: resultData
@@ -90,12 +113,13 @@ export function AppProvider({ children }) {
             date: new Date().toISOString(),
             profile: currentConsultation.profile,
             goal: currentConsultation.goal,
+            goals: currentConsultation.goals,
             conditions: currentConsultation.conditions,
             results: resultData
         };
 
-        // Save to Firebase if available
-        if (isFirebaseConfigured() && user) {
+        // Save to Firebase if logged in
+        if (user && isFirebaseConfigured()) {
             try {
                 const docRef = await addDoc(
                     collection(db, 'users', user.uid, 'consultations'),
@@ -116,8 +140,8 @@ export function AppProvider({ children }) {
     };
 
     const deleteConsultation = async (id) => {
-        // Remove from Firebase if available
-        if (isFirebaseConfigured() && user) {
+        // Remove from Firebase if logged in
+        if (user && isFirebaseConfigured()) {
             try {
                 await deleteDoc(doc(db, 'users', user.uid, 'consultations', id));
             } catch (error) {
@@ -125,7 +149,6 @@ export function AppProvider({ children }) {
             }
         }
 
-        // Remove from state and localStorage
         const newHistory = history.filter(item => item.id !== id);
         setHistory(newHistory);
         localStorage.setItem('fuxion_history', JSON.stringify(newHistory));
@@ -144,9 +167,18 @@ export function AppProvider({ children }) {
         setCurrentConsultation({
             profile: { name: '', phone: '', age: '', gender: '' },
             goal: '',
+            goals: [],
             conditions: [],
             results: null
         });
+    };
+
+    const logout = async () => {
+        await firebaseLogout();
+        localStorage.removeItem('fuxion_demo_mode');
+        setUser(null);
+        setHistory([]);
+        setAdvisorProfile({ name: '', phone: '', social: '' });
     };
 
     return (
@@ -162,7 +194,10 @@ export function AppProvider({ children }) {
             advisorProfile,
             saveAdvisorProfile,
             user,
-            loading
+            loading,
+            authChecked,
+            logout,
+            isAuthenticated: !!user || localStorage.getItem('fuxion_demo_mode')
         }}>
             {children}
         </AppContext.Provider>

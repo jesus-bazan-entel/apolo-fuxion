@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Save, UserCircle, Phone, Instagram, ArrowLeft } from 'lucide-react';
+import { Save, UserCircle, Phone, Instagram, ArrowLeft, LogOut, Mail } from 'lucide-react';
 
 export default function Settings() {
     const navigate = useNavigate();
-    const { advisorProfile, saveAdvisorProfile } = useApp();
+    const { advisorProfile, saveAdvisorProfile, user, logout } = useApp();
 
     const [form, setForm] = useState({
         name: '',
@@ -19,7 +19,14 @@ export default function Settings() {
 
     const handleSave = () => {
         saveAdvisorProfile(form);
-        navigate('/'); // Go back to dashboard after save
+        navigate('/');
+    };
+
+    const handleLogout = async () => {
+        if (confirm('¿Cerrar sesión? Tus datos estarán seguros en la nube.')) {
+            await logout();
+            navigate('/login');
+        }
     };
 
     return (
@@ -30,6 +37,21 @@ export default function Settings() {
                 </button>
                 <h2 className="text-2xl font-bold text-slate-800">Mi Perfil de Asesor</h2>
             </div>
+
+            {/* Account Info */}
+            {user && (
+                <div className="bg-gradient-to-r from-fuxion-blue to-fuxion-teal text-white rounded-xl p-4">
+                    <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+                            <Mail size={24} />
+                        </div>
+                        <div>
+                            <p className="text-sm opacity-80">Cuenta conectada:</p>
+                            <p className="font-bold">{user.email}</p>
+                        </div>
+                    </div>
+                </div>
+            )}
 
             <p className="text-slate-500 text-sm">
                 Estos datos aparecerán automáticamente en la firma de tus PDFs y mensajes de WhatsApp.
@@ -42,7 +64,7 @@ export default function Settings() {
                         <UserCircle className="absolute left-3 top-3 text-slate-400" size={18} />
                         <input
                             type="text"
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-fuxion-blue outline-none"
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-fuxion-blue outline-none"
                             placeholder="Ej. María Fuxioner"
                             value={form.name}
                             onChange={e => setForm({ ...form, name: e.target.value })}
@@ -56,7 +78,7 @@ export default function Settings() {
                         <Phone className="absolute left-3 top-3 text-slate-400" size={18} />
                         <input
                             type="tel"
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-fuxion-blue outline-none"
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-fuxion-blue outline-none"
                             placeholder="+51 999..."
                             value={form.phone}
                             onChange={e => setForm({ ...form, phone: e.target.value })}
@@ -70,7 +92,7 @@ export default function Settings() {
                         <Instagram className="absolute left-3 top-3 text-slate-400" size={18} />
                         <input
                             type="text"
-                            className="w-full pl-10 pr-4 py-3 rounded-xl border-slate-200 focus:ring-2 focus:ring-fuxion-blue outline-none"
+                            className="w-full pl-10 pr-4 py-3 rounded-xl border border-slate-200 focus:ring-2 focus:ring-fuxion-blue outline-none"
                             placeholder="@tu_usuario"
                             value={form.social}
                             onChange={e => setForm({ ...form, social: e.target.value })}
@@ -96,6 +118,14 @@ export default function Settings() {
                 </div>
             </div>
 
+            {/* Logout Button */}
+            <button
+                onClick={handleLogout}
+                className="w-full py-3 text-red-500 border border-red-200 rounded-xl hover:bg-red-50 transition-colors flex items-center justify-center gap-2"
+            >
+                <LogOut size={18} />
+                Cerrar Sesión
+            </button>
         </div>
     );
 }
