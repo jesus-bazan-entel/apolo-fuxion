@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-slate-50 text-slate-900;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+}
+
+.glass {
+  @apply bg-white/80 backdrop-blur-md border border-white/20 shadow-lg;
+}
+
+.btn-primary {
+  @apply bg-fuxion-blue text-white font-bold py-3 px-6 rounded-xl shadow-md hover:bg-blue-700 transition-all active:scale-95;
+}
+
+.btn-secondary {
+  @apply bg-white text-slate-700 font-bold py-3 px-6 rounded-xl shadow-sm border border-slate-200 hover:bg-slate-50 transition-all active:scale-95;
+}
+
+/* Print Styles */
+@media print {
+  @page { margin: 0.5cm; }
+  body {
+    background: white !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  
+  .no-print {
+    display: none !important;
+  }
+
+  .print-force-show {
+    display: block !important;
+  }
+  
+  .print-break-inside-avoid {
+    break-inside: avoid;
+  }
+}
