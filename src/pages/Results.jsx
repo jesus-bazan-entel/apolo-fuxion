@@ -1,166 +1,216 @@
-import React, { useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Share2, Printer, Home, AlertTriangle } from 'lucide-react';
+import { Share2, Download, Home, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { generatePDF, sharePDF, downloadPDF } from '../utils/pdfGenerator';
 
 export default function Results() {
     const navigate = useNavigate();
-    const { currentConsultation, history, advisorProfile } = useApp();
+    const { currentConsultation, advisorProfile } = useApp();
+    const [isGenerating, setIsGenerating] = useState(false);
 
-    // If navigated directly without data, go home
-    useEffect(() => {
-        if (!currentConsultation.results && history.length > 0) {
-            // Trying to view last? Or just redirect
-            // For MVP just redirect
-            if (history.length > 0) {
-                // In a real app we might load the ID from URL. 
-                // For now, let's assume we just finished the flow.
-            } else {
-                navigate('/');
-            }
-        }
-    }, [currentConsultation, history, navigate]);
+    if (!currentConsultation.results) {
+        return (
+            <div className="text-center py-20">
+                <p className="text-slate-500">No hay resultados disponibles.</p>
+                <button onClick={() => navigate('/')} className="btn-primary mt-4">
+                    Volver al Inicio
+                </button>
+            </div>
+        );
+    }
 
-    if (!currentConsultation.results) return null;
-
-    const { profile, results } = currentConsultation;
+    const { profile, results, goal } = currentConsultation;
     const { products, tips } = results;
 
-    // --- Dynamic Image Generator Helper ---
     const getImg = (text, color) =>
-        `https://placehold.co/600x400/${color}/ffffff?text=${encodeURIComponent(text)}`;
+        `https://placehold.co/400x300/${color}/ffffff?text=${encodeURIComponent(text)}`;
 
-    // --- WhatsApp Logic ---
-    const handleWhatsApp = () => {
-        let msg = `*Hola ${profile.name}*, aquí tienes tu recomendación Fuxion personalizada:\n\n`;
-        msg += `*Objetivo:* ${currentConsultation.goal}\n\n`;
-
-        products.forEach(p => {
-            msg += `${p.emoji} *${p.name}*: ${p.usage}\n`;
-        });
-
-        if (tips.length > 0) {
-            msg += `\n*Nota del Dr.:* ${tips[0]}\n`;
+    const handleShare = async () => {
+        setIsGenerating(true);
+        try {
+            const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile.name || 'fuxion'}.pdf`);
+            if (pdfFile) {
+                const shared = await sharePDF(pdfFile, `Recomendación para ${profile.name}`);
+                if (!shared) {
+                    // Fallback happened, file was downloaded
+                }
+            }
+        } catch (error) {
+            console.error('Error:', error);
         }
-
-        if (advisorProfile && advisorProfile.name) {
-            msg += `\n\nAtentamente,\n*${advisorProfile.name}*\nAsesor Fuxion`;
-            if (advisorProfile.social) msg += `\nIG: ${advisorProfile.social}`;
-        } else {
-            msg += `\nCualquier duda estoy para servirte.`;
-        }
-
-        const url = `https://wa.me/${profile.phone}?text=${encodeURIComponent(msg)}`;
-        window.open(url, '_blank');
+        setIsGenerating(false);
     };
 
-    const handlePrint = () => {
-        window.print();
+    const handleDownload = async () => {
+        setIsGenerating(true);
+        try {
+            const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile.name || 'fuxion'}.pdf`);
+            if (pdfFile) {
+                downloadPDF(pdfFile);
+            }
+        } catch (error) {
+            console.error('Error:', error);
+        }
+        setIsGenerating(false);
     };
 
     return (
-        <div className="pb-20 animate-in fade-in duration-700">
-
-            {/* Header for Print */}
-            <div className="hidden print-force-show mb-8 text-center border-b pb-4">
-                <h1 className="text-3xl font-bold text-slate-900">Dr. Columbus Virtual</h1>
-                <p className="text-slate-500">Recomendación Nutracéutica Personalizada</p>
-            </div>
-
-            <div className="mb-6">
-                <h2 className="text-2xl font-bold text-slate-800">Tu Plan Fuxion</h2>
-                <p className="text-slate-500">Preparado para: <span className="font-semibold text-fuxion-blue">{profile.name}</span></p>
-            </div>
-
-            {/* Tips Section */}
-            {tips.length > 0 && (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6 flex gap-3 print-break-inside-avoid">
-                    <AlertTriangle className="text-yellow-600 shrink-0" />
-                    <div>
-                        <p className="text-sm text-yellow-800 font-medium">Nota Importante:</p>
-                        <ul className="list-disc list-inside text-sm text-yellow-700">
-                            {tips.map((t, i) => <li key={i}>{t}</li>)}
-                        </ul>
-                    </div>
+        <div className="pb-24">
+            {/* PDF Content Container */}
+            <div id="pdf-content" className="bg-white p-4 rounded-2xl">
+                {/* Header */}
+                <div className="text-center mb-6 pb-4 border-b border-slate-200">
+                    <h1 className="text-2xl font-bold bg-gradient-to-r from-fuxion-blue to-fuxion-teal bg-clip-text text-transparent">
+                        Dr. Columbus Virtual
+                    </h1>
+                    <p className="text-slate-500 text-sm">Recomendación Nutracéutica Personalizada</p>
                 </div>
-            )}
 
-            {/* Products Grid */}
-            <div className="space-y-6">
-                {products.map(product => (
-                    <div key={product.id} className="bg-white rounded-2xl shadow-sm border border-slate-100 overflow-hidden print-break-inside-avoid flex flex-col md:flex-row">
-                        {/* Image Area */}
-                        <div className="h-48 md:h-auto md:w-1/3 relative bg-slate-100">
-                            <img
-                                src={getImg(product.name, product.imageColor)}
-                                alt={product.name}
-                                className="w-full h-full object-cover"
-                            />
-                            <div className="absolute top-2 right-2 bg-white/90 backdrop-blur px-2 py-1 rounded-full text-xs font-bold shadow-sm">
-                                {product.line}
+                {/* Client Info */}
+                <div className="bg-gradient-to-r from-fuxion-blue to-fuxion-teal text-white rounded-xl p-4 mb-6">
+                    <p className="text-sm opacity-80">Preparado para:</p>
+                    <p className="text-xl font-bold">{profile.name}</p>
+                    <p className="text-sm opacity-80 mt-1">Objetivo: {goal}</p>
+                </div>
+
+                {/* Tips Section */}
+                {tips.length > 0 && (
+                    <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+                        <div className="flex gap-2 items-start">
+                            <AlertTriangle className="text-amber-600 shrink-0 mt-1" size={18} />
+                            <div>
+                                <p className="font-bold text-amber-800 text-sm mb-2">Nota del Dr. Columbus:</p>
+                                {tips.map((t, i) => (
+                                    <p key={i} className="text-amber-700 text-sm">{t}</p>
+                                ))}
                             </div>
-                        </div>
-
-                        {/* Content */}
-                        <div className="p-5 flex-1 flex flex-col justify-center">
-                            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2 mb-1">
-                                {product.name}
-                            </h3>
-                            <p className="text-sm text-slate-500 mb-3 leading-relaxed">
-                                {product.description}
-                            </p>
-
-                            <div className="bg-blue-50 text-blue-800 p-3 rounded-xl text-sm font-medium">
-                                <span className="block text-xs uppercase text-blue-400 mb-1">Modo de uso</span>
-                                {product.usage}
-                            </div>
-
-                            {product.warning && (
-                                <p className="mt-2 text-xs text-red-500 flex items-center gap-1">
-                                    <AlertTriangle size={12} />
-                                    {product.warning}
-                                </p>
-                            )}
                         </div>
                     </div>
-                ))}
+                )}
+
+                {/* Products */}
+                <div className="space-y-6">
+                    {products.map((product, index) => (
+                        <div key={product.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
+                            {/* Product Header */}
+                            <div className="bg-slate-50 p-4 border-b border-slate-100">
+                                <div className="flex items-center gap-3">
+                                    <span className="text-3xl">{product.emoji}</span>
+                                    <div>
+                                        <h3 className="font-bold text-lg text-slate-800">{product.name}</h3>
+                                        <p className="text-xs text-slate-500">{product.line} • {product.type}</p>
+                                    </div>
+                                </div>
+                                {product.tagline && (
+                                    <p className="mt-2 text-sm font-medium text-fuxion-blue italic">
+                                        "{product.tagline}"
+                                    </p>
+                                )}
+                            </div>
+
+                            {/* Product Image */}
+                            <div className="h-40 bg-slate-100">
+                                <img
+                                    src={getImg(product.name, product.imageColor)}
+                                    alt={product.name}
+                                    className="w-full h-full object-cover"
+                                />
+                            </div>
+
+                            {/* Product Content */}
+                            <div className="p-4 space-y-4">
+                                {/* Description */}
+                                <p className="text-slate-600 text-sm">{product.description}</p>
+
+                                {/* Benefits */}
+                                {product.benefits && (
+                                    <div>
+                                        <p className="font-bold text-slate-700 text-sm mb-2">✨ Beneficios:</p>
+                                        <ul className="space-y-1">
+                                            {product.benefits.map((b, i) => (
+                                                <li key={i} className="flex items-start gap-2 text-sm text-slate-600">
+                                                    <CheckCircle size={14} className="text-green-500 shrink-0 mt-0.5" />
+                                                    {b}
+                                                </li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* How to Take */}
+                                {product.howToTake && (
+                                    <div className="bg-blue-50 rounded-xl p-3">
+                                        <p className="font-bold text-blue-800 text-sm mb-2">🕐 ¿Cómo tomarlo?</p>
+                                        <ul className="space-y-1">
+                                            {product.howToTake.map((h, i) => (
+                                                <li key={i} className="text-sm text-blue-700">{h}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+
+                                {/* Important Notes */}
+                                {product.importantNotes && (
+                                    <div className="bg-amber-50 rounded-xl p-3">
+                                        <p className="font-bold text-amber-800 text-sm mb-2">⚠️ Importante:</p>
+                                        <ul className="space-y-1">
+                                            {product.importantNotes.map((n, i) => (
+                                                <li key={i} className="text-sm text-amber-700">{n}</li>
+                                            ))}
+                                        </ul>
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                {/* Advisor Footer */}
+                <div className="mt-8 pt-6 border-t border-slate-200 text-center">
+                    {advisorProfile?.name && (
+                        <div className="mb-4">
+                            <p className="text-slate-600 text-sm">Asesorado por:</p>
+                            <p className="font-bold text-slate-800">{advisorProfile.name}</p>
+                            <p className="text-slate-500 text-sm">
+                                {advisorProfile.phone}
+                                {advisorProfile.social && ` • ${advisorProfile.social}`}
+                            </p>
+                        </div>
+                    )}
+                    <p className="text-[10px] text-slate-400">
+                        Esta herramienta es de uso exclusivo para empresarios independientes.
+                        Las recomendaciones no sustituyen la opinión médica profesional.
+                    </p>
+                </div>
             </div>
 
-            {/* Floating Action Buttons (No Print) */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-50 no-print w-full max-w-sm px-4">
+            {/* Floating Action Buttons */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-50 w-full max-w-sm px-4">
                 <button
                     onClick={() => navigate('/')}
-                    className="p-4 bg-white text-slate-700 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-transform active:scale-95"
+                    className="p-4 bg-white text-slate-700 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
                 >
                     <Home size={24} />
                 </button>
 
                 <button
-                    onClick={handlePrint}
-                    className="flex-1 bg-slate-800 text-white font-bold rounded-full shadow-xl hover:bg-slate-700 transition-transform active:scale-95 flex items-center justify-center gap-2"
+                    onClick={handleDownload}
+                    disabled={isGenerating}
+                    className="flex-1 bg-slate-800 text-white font-bold rounded-full shadow-xl hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                    <Printer size={20} />
-                    PDF
+                    {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
+                    Descargar PDF
                 </button>
 
                 <button
-                    onClick={handleWhatsApp}
-                    className="flex-1 bg-green-500 text-white font-bold rounded-full shadow-xl hover:bg-green-600 transition-transform active:scale-95 flex items-center justify-center gap-2"
+                    onClick={handleShare}
+                    disabled={isGenerating}
+                    className="flex-1 bg-green-500 text-white font-bold rounded-full shadow-xl hover:bg-green-600 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
-                    <Share2 size={20} />
-                    WhatsApp
+                    {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
+                    Compartir
                 </button>
-            </div>
-
-            {/* Legal Footer */}
-            <div className="mt-12 pt-8 border-t border-slate-200 text-center text-[10px] text-slate-400">
-                {advisorProfile?.name && (
-                    <div className="mb-4 text-sm text-slate-700 font-medium">
-                        <p>Asesorado por: <span className="font-bold">{advisorProfile.name}</span></p>
-                        <p>{advisorProfile.phone} {advisorProfile.social && ` | ${advisorProfile.social}`}</p>
-                    </div>
-                )}
-                <p>Esta herramienta es de uso exclusivo para empresarios independientes. Las recomendaciones no sustituyen la opinión médica profesional.</p>
             </div>
         </div>
     );
