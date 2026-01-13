@@ -4,14 +4,23 @@ export function runLogic(profile) {
     const recommendations = [];
     const tips = [];
 
-    const { goal, gender, age, conditions } = profile;
+    // Support multiple goals
+    const { goals, goal, gender, age, conditions } = profile;
+    const allGoals = goals && goals.length > 0 ? goals : [goal];
 
     // Helper to find product
     const getProd = (id) => PRODUCTS.find(p => p.id === id);
 
-    // --- FASE 1: LIMPIEZA ---
-    // Mandatorio: Flora Liv
-    recommendations.push(getProd('floraliv'));
+    // Helper to add product if not already added
+    const addProd = (id) => {
+        const prod = getProd(id);
+        if (prod && !recommendations.find(r => r?.id === id)) {
+            recommendations.push(prod);
+        }
+    };
+
+    // --- FASE 1: LIMPIEZA (Always applies) ---
+    addProd('floraliv'); // Mandatorio
 
     // Decisión de Limpieza de Colon
     const hasGastritis = conditions.includes('Gastritis');
@@ -21,86 +30,108 @@ export function runLogic(profile) {
     const sensitiveGut = hasGastritis || isPregnant || isLactating || isChild;
 
     if (sensitiveGut) {
-        recommendations.push(getProd('liquidfibra'));
+        addProd('liquidfibra');
         if (hasGastritis) tips.push("Dado que tienes gastritis, evitamos Prunex. La fibra líquida te ayudará suavemente.");
         if (isPregnant) tips.push("En tu estado, Prunex es muy fuerte. Usamos Liquid Fibra que es seguro.");
     } else {
-        recommendations.push(getProd('prunex1'));
+        addProd('prunex1');
     }
 
-    // --- FASE 2: NUTRICIÓN BASE ---
-    switch (goal) {
-        case 'Bajar de Peso':
-            recommendations.push(getProd('bioprofit'));
-            break;
-        case 'Deporte':
-            recommendations.push(getProd('bioprosport'));
-            break;
-        default:
-            recommendations.push(getProd('bioprotect'));
-            break;
-    }
-
-    // --- FASE 3: POTENCIACIÓN ---
+    // --- FASE 2 & 3: Procesar CADA objetivo seleccionado ---
     const hasHypertension = conditions.includes('Hipertensión');
 
-    switch (goal) {
-        case 'Bajar de Peso':
-            if (hasHypertension) {
-                recommendations.push(getProd('nocarbt')); // Reemplaza T3
-                tips.push("Por la hipertensión, reemplazamos el Termo T3 por Nocarb-T para controlar carbohidratos sin acelerarte.");
-            } else {
-                recommendations.push(getProd('termot3'));
-                recommendations.push(getProd('nocarbt'));
-            }
-            break;
+    allGoals.forEach(currentGoal => {
+        // NUTRICIÓN BASE según objetivo
+        switch (currentGoal) {
+            case 'Bajar de Peso':
+                addProd('bioprofit');
+                break;
+            case 'Deporte':
+                addProd('bioprosport');
+                break;
+            case 'Inmunidad':
+                addProd('bioprotect');
+                break;
+            default:
+                // Para otros objetivos, usar Tect como base si no hay ya una proteína
+                if (!recommendations.find(r => r?.id?.includes('biopro'))) {
+                    addProd('bioprotect');
+                }
+                break;
+        }
 
-        case 'Energía':
-            if (hasHypertension) {
-                recommendations.push(getProd('nutradey')); // Alternativa segura
-                tips.push("Para energía segura sin afectar tu presión, Nutradey es la mejor opción.");
-            } else {
-                recommendations.push(getProd('vitaxtra'));
-            }
-            break;
+        // POTENCIACIÓN según objetivo
+        switch (currentGoal) {
+            case 'Bajar de Peso':
+                if (hasHypertension) {
+                    addProd('nocarbt');
+                    if (!tips.find(t => t.includes('hipertensión'))) {
+                        tips.push("Por la hipertensión, reemplazamos el Termo T3 por Nocarb-T para controlar carbohidratos sin acelerarte.");
+                    }
+                } else {
+                    addProd('termot3');
+                    addProd('nocarbt');
+                }
+                break;
 
-        case 'Inmunidad':
-            // Ya tiene Bioprotect. Añadimos algo mas?
-            recommendations.push(getProd('floraliv')); // Ya está, pero reforzamos idea
-            // Verra + Ganomas (No en lista basica, usaremos genericos si faltan)
-            break;
+            case 'Energía':
+                if (hasHypertension) {
+                    addProd('nutradey');
+                    if (!tips.find(t => t.includes('energía segura'))) {
+                        tips.push("Para energía segura sin afectar tu presión, Nutradey es la mejor opción.");
+                    }
+                } else {
+                    addProd('vitaxtra');
+                }
+                break;
 
-        case 'Articulaciones':
-            recommendations.push(getProd('goldenflx'));
-            recommendations.push(getProd('alphabalance')); // Alcalinizar
-            tips.push("El dolor articular suele venir con acidez. Alpha Balance ayuda a alcalinizar tu cuerpo.");
-            break;
+            case 'Inmunidad':
+                // Bioprotect ya añadido arriba
+                break;
 
-        case 'Vigor Mental':
-            if (hasHypertension) {
-                recommendations.push(getProd('off'));
-                tips.push("Para enfoque sin estrés.");
-            } else {
-                recommendations.push(getProd('on'));
-            }
-            break;
+            case 'Articulaciones':
+                addProd('goldenflx');
+                addProd('alphabalance');
+                if (!tips.find(t => t.includes('articular'))) {
+                    tips.push("El dolor articular suele venir con acidez. Alpha Balance ayuda a alcalinizar tu cuerpo.");
+                }
+                break;
 
-        case 'Hormonal':
-            if (gender === 'Mujer') {
-                recommendations.push(getProd('probal'));
-            } else {
-                tips.push("Probal está diseñado principalmente para el balance hormonal femenino.");
-            }
-            break;
+            case 'Vigor Mental':
+                if (hasHypertension) {
+                    addProd('off');
+                    tips.push("Para enfoque sin estrés, OFF te ayuda a relajarte.");
+                } else {
+                    addProd('on');
+                }
+                break;
 
-        case 'Detox':
-            recommendations.push(getProd('alphabalance'));
-            recommendations.push(getProd('berrybalance'));
-            break;
-    }
+            case 'Hormonal':
+                if (gender === 'Mujer') {
+                    addProd('probal');
+                } else {
+                    if (!tips.find(t => t.includes('Probal'))) {
+                        tips.push("Probal está diseñado principalmente para el balance hormonal femenino.");
+                    }
+                }
+                break;
 
-    // Dedupe
-    const uniqueRecs = [...new Set(recommendations)];
+            case 'Detox':
+                addProd('alphabalance');
+                break;
 
-    return { products: uniqueRecs, tips };
+            case 'Deporte':
+                // Biopro+ Sport ya añadido arriba
+                // Podemos agregar energía si no es hipertenso
+                if (!hasHypertension) {
+                    addProd('vitaxtra');
+                }
+                break;
+        }
+    });
+
+    // Filter out any undefined products
+    const validRecs = recommendations.filter(r => r !== undefined && r !== null);
+
+    return { products: validRecs, tips };
 }
