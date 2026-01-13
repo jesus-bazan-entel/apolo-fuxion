@@ -2,12 +2,16 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { runLogic } from '../logic/columbusEngine';
-import { User, Activity, ShieldAlert, ArrowRight, Check, UserPlus, Phone } from 'lucide-react';
+import { generateAIRecommendation, convertAIResponseToResults } from '../services/aiService';
+import { PRODUCTS } from '../data/products';
+import { User, Activity, ShieldAlert, ArrowRight, Check, UserPlus, Phone, Sparkles, Loader2 } from 'lucide-react';
 
 export default function FormWizard() {
     const navigate = useNavigate();
     const { currentConsultation, setCurrentConsultation, saveConsultation } = useApp();
     const [step, setStep] = useState(1);
+    const [isLoading, setIsLoading] = useState(false);
+    const [useAI, setUseAI] = useState(true); // Toggle for AI mode
 
     const updateProfile = (field, value) => {
         setCurrentConsultation(prev => ({
@@ -28,7 +32,7 @@ export default function FormWizard() {
                 const newGoals = [...currentGoals, goal];
                 return { ...prev, goals: newGoals, goal: newGoals[0] };
             }
-            return prev; // Max 3 reached, do nothing
+            return prev;
         });
     };
 
@@ -58,7 +62,6 @@ export default function FormWizard() {
                         updateProfile('name', contact.name[0]);
                     }
                     if (contact.tel && contact.tel[0]) {
-                        // Clean phone number (remove spaces, dashes)
                         const cleanPhone = contact.tel[0].replace(/[\s\-\(\)]/g, '');
                         updateProfile('phone', cleanPhone);
                     }
@@ -67,24 +70,66 @@ export default function FormWizard() {
                 console.log('Contact picker cancelled or failed:', err);
             }
         } else {
-            alert('Tu navegador no soporta el selector de contactos. Por favor ingresa los datos manualmente.');
+            alert('Tu navegador no soporta el selector de contactos.');
         }
     };
 
-    const finish = () => {
+    const finish = async () => {
         const goals = Array.isArray(currentConsultation.goals) ? currentConsultation.goals : [currentConsultation.goal];
-        const results = runLogic({
+        const profile = {
             ...currentConsultation.profile,
-            goal: goals[0], // Primary goal for main logic
-            goals: goals,   // All goals
+            goal: goals[0],
+            goals: goals,
             conditions: currentConsultation.conditions
-        });
+        };
 
-        saveConsultation(results);
-        navigate('/results');
+        setIsLoading(true);
+
+        try {
+            let results;
+
+            if (useAI) {
+                // Try AI generation first
+                try {
+                    const aiResponse = await generateAIRecommendation(profile);
+                    results = convertAIResponseToResults(aiResponse, PRODUCTS);
+                } catch (aiError) {
+                    console.warn('AI generation failed, falling back to local engine:', aiError);
+                    // Fallback to local engine
+                    results = runLogic(profile);
+                }
+            } else {
+                // Use local engine directly
+                results = runLogic(profile);
+            }
+
+            saveConsultation(results);
+            navigate('/results');
+        } catch (error) {
+            console.error('Error generating recommendation:', error);
+            // Final fallback
+            const results = runLogic(profile);
+            saveConsultation(results);
+            navigate('/results');
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const currentGoals = Array.isArray(currentConsultation.goals) ? currentConsultation.goals : (currentConsultation.goal ? [currentConsultation.goal] : []);
+
+    // Loading Screen
+    if (isLoading) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20 animate-pulse">
+                <div className="w-20 h-20 bg-gradient-to-br from-fuxion-blue to-fuxion-teal rounded-full flex items-center justify-center mb-6">
+                    <Sparkles className="text-white animate-spin" size={32} />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800 mb-2">Dr. Columbus está analizando...</h2>
+                <p className="text-slate-500 text-center">Generando tu recomendación personalizada con IA</p>
+            </div>
+        );
+    }
 
     return (
         <div className="py-4">
@@ -206,10 +251,10 @@ export default function FormWizard() {
                                     onClick={() => toggleGoal(g)}
                                     disabled={isDisabled}
                                     className={`p-4 rounded-xl border text-sm font-bold transition-all relative ${isSelected
-                                            ? 'bg-fuxion-blue text-white border-transparent shadow-lg transform scale-105'
-                                            : isDisabled
-                                                ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
-                                                : 'bg-white text-slate-600 border-slate-200 hover:border-fuxion-blue'
+                                        ? 'bg-fuxion-blue text-white border-transparent shadow-lg transform scale-105'
+                                        : isDisabled
+                                            ? 'bg-slate-100 text-slate-300 border-slate-200 cursor-not-allowed'
+                                            : 'bg-white text-slate-600 border-slate-200 hover:border-fuxion-blue'
                                         }`}
                                 >
                                     {isSelected && (
@@ -260,11 +305,31 @@ export default function FormWizard() {
                         })}
                     </div>
 
+                    {/* AI Toggle */}
+                    <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-blue-50 rounded-xl border border-purple-200">
+                        <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                                <Sparkles className="text-purple-600" size={20} />
+                                <div>
+                                    <p className="font-bold text-slate-800 text-sm">Recomendación con IA</p>
+                                    <p className="text-xs text-slate-500">Dr. Columbus Virtual personalizado</p>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => setUseAI(!useAI)}
+                                className={`w-12 h-6 rounded-full transition-colors ${useAI ? 'bg-purple-600' : 'bg-slate-300'}`}
+                            >
+                                <div className={`w-5 h-5 bg-white rounded-full shadow transition-transform ${useAI ? 'translate-x-6' : 'translate-x-0.5'}`} />
+                            </button>
+                        </div>
+                    </div>
+
                     <button
                         onClick={finish}
                         className="btn-primary w-full mt-8 flex items-center justify-center gap-2"
                     >
-                        Generar Receta <Activity size={18} />
+                        {useAI ? <Sparkles size={18} /> : <Activity size={18} />}
+                        {useAI ? 'Generar con IA' : 'Generar Receta'}
                     </button>
                 </div>
             )}
