@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Share2, Download, ArrowLeft, AlertTriangle, CheckCircle, Loader2, Calendar, Target, User } from 'lucide-react';
-import { generatePDF, sharePDF, downloadPDF } from '../utils/pdfGenerator';
+import { MessageCircle, Share2, ArrowLeft, AlertTriangle, CheckCircle, Loader2, Calendar, Target, User } from 'lucide-react';
+import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
 
 export default function ConsultationDetail() {
     const navigate = useNavigate();
@@ -28,34 +28,75 @@ export default function ConsultationDetail() {
         );
     }
 
-    const { profile, goal, results, date } = consultation;
+    const { profile, goal, goals, results, date } = consultation;
+    const allGoals = goals || [goal];
     const { products, tips } = results || { products: [], tips: [] };
 
     const getImg = (text, color) =>
         `https://placehold.co/400x300/${color}/ffffff?text=${encodeURIComponent(text)}`;
 
-    const handleShare = async () => {
-        setIsGenerating(true);
-        try {
-            const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile?.name || 'fuxion'}.pdf`);
-            if (pdfFile) {
-                await sharePDF(pdfFile, `Recomendación para ${profile?.name}`);
-            }
-        } catch (error) {
-            console.error('Error:', error);
+    // Send WhatsApp text message to client
+    const handleWhatsApp = () => {
+        let msg = `¡Hola *${profile?.name}*! 👋\n\n`;
+        msg += `Te comparto tu recomendación personalizada de productos Fuxion:\n\n`;
+        msg += `🎯 *Objetivo${allGoals.length > 1 ? 's' : ''}:* ${allGoals.join(', ')}\n\n`;
+
+        msg += `📋 *Tu Plan de Productos:*\n`;
+        products.forEach((p) => {
+            msg += `\n${p.emoji} *${p.name}*\n`;
+            msg += `   ${p.usage}\n`;
+        });
+
+        if (tips && tips.length > 0) {
+            msg += `\n⚠️ *Nota:* ${tips[0]}\n`;
         }
-        setIsGenerating(false);
+
+        if (advisorProfile?.name) {
+            msg += `\n\n✨ Asesorado por: *${advisorProfile.name}*`;
+            if (advisorProfile.phone) msg += `\n📱 ${advisorProfile.phone}`;
+            if (advisorProfile.social) msg += `\n📷 ${advisorProfile.social}`;
+        }
+
+        msg += `\n\n_Powered by REXILIENCIA_`;
+
+        const cleanPhone = (profile?.phone || '').replace(/[\s\-\(\)\+]/g, '');
+        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
     };
 
-    const handleDownload = async () => {
+    // Share PDF directly to client via WhatsApp
+    const handleSharePDF = async () => {
         setIsGenerating(true);
         try {
             const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile?.name || 'fuxion'}.pdf`);
             if (pdfFile) {
-                downloadPDF(pdfFile);
+                // Try Web Share API first (works best on mobile)
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                    await navigator.share({
+                        files: [pdfFile],
+                        title: `Recomendación para ${profile?.name}`,
+                        text: `¡Hola ${profile?.name}! Te comparto tu plan de productos Fuxion personalizado 📋✨`
+                    });
+                } else {
+                    // Fallback: Download and open WhatsApp
+                    downloadPDF(pdfFile);
+                    if (profile?.phone) {
+                        const msg = `¡Hola *${profile?.name}*! 📋\n\nTe acabo de enviar tu plan de productos Fuxion personalizado.\n\n👆 *Adjunto el PDF con todos los detalles.*\n\n_Powered by REXILIENCIA_`;
+                        const cleanPhone = (profile?.phone || '').replace(/[\s\-\(\)\+]/g, '');
+                        setTimeout(() => {
+                            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                        }, 500);
+                    }
+                }
             }
         } catch (error) {
             console.error('Error:', error);
+            try {
+                const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile?.name || 'fuxion'}.pdf`);
+                if (pdfFile) downloadPDF(pdfFile);
+            } catch (e) {
+                console.error('Download fallback failed:', e);
+            }
         }
         setIsGenerating(false);
     };
@@ -90,7 +131,7 @@ export default function ConsultationDetail() {
                     <div className="flex flex-wrap gap-4 text-sm opacity-90">
                         <div className="flex items-center gap-1">
                             <Target size={14} />
-                            <span>{goal}</span>
+                            <span>{allGoals.join(', ')}</span>
                         </div>
                         <div className="flex items-center gap-1">
                             <Calendar size={14} />
@@ -206,23 +247,26 @@ export default function ConsultationDetail() {
             </div>
 
             {/* Floating Actions */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex gap-3 z-50 w-full max-w-sm px-4">
-                <button
-                    onClick={handleDownload}
-                    disabled={isGenerating}
-                    className="flex-1 bg-slate-800 text-white font-bold py-3 rounded-full shadow-xl hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
-                >
-                    {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
-                    PDF
-                </button>
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-3 z-50 w-full max-w-sm px-4">
+                {/* Main action: Send to client via WhatsApp */}
+                {profile?.phone && (
+                    <button
+                        onClick={handleWhatsApp}
+                        className="w-full bg-green-500 text-white font-bold py-4 rounded-full shadow-xl hover:bg-green-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <MessageCircle size={22} />
+                        Enviar a {profile?.name} por WhatsApp
+                    </button>
+                )}
 
+                {/* Secondary: Share PDF */}
                 <button
-                    onClick={handleShare}
+                    onClick={handleSharePDF}
                     disabled={isGenerating}
-                    className="flex-1 bg-green-500 text-white font-bold py-3 rounded-full shadow-xl hover:bg-green-600 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    className="w-full bg-slate-800 text-white font-bold py-3 rounded-full shadow-xl hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                     {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
-                    Compartir
+                    Enviar PDF
                 </button>
             </div>
         </div>
