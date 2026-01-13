@@ -4,6 +4,8 @@ import {
     getAuth,
     signInWithEmailAndPassword,
     createUserWithEmailAndPassword,
+    signInWithPopup,
+    GoogleAuthProvider,
     signOut,
     onAuthStateChanged
 } from 'firebase/auth';
@@ -26,12 +28,14 @@ export const isFirebaseConfigured = () => {
 let app = null;
 let db = null;
 let auth = null;
+let googleProvider = null;
 
 try {
     if (isFirebaseConfigured()) {
         app = initializeApp(firebaseConfig);
         db = getFirestore(app);
         auth = getAuth(app);
+        googleProvider = new GoogleAuthProvider();
     }
 } catch (error) {
     console.warn('Firebase initialization error:', error.message);
@@ -39,7 +43,7 @@ try {
 
 export { db, auth };
 
-// Auth functions
+// Email/Password Auth
 export async function loginWithEmail(email, password) {
     if (!auth) throw new Error('Firebase no está configurado');
     return signInWithEmailAndPassword(auth, email, password);
@@ -50,11 +54,19 @@ export async function registerWithEmail(email, password) {
     return createUserWithEmailAndPassword(auth, email, password);
 }
 
+// Google Auth
+export async function loginWithGoogle() {
+    if (!auth || !googleProvider) throw new Error('Firebase no está configurado');
+    return signInWithPopup(auth, googleProvider);
+}
+
+// Logout
 export async function logout() {
     if (!auth) return;
     return signOut(auth);
 }
 
+// Auth State Observer
 export function onAuthChange(callback) {
     if (!auth) {
         callback(null);
