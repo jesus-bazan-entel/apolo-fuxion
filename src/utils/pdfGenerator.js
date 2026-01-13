@@ -69,13 +69,12 @@ export function downloadPDF(pdfFile) {
     URL.revokeObjectURL(url);
 }
 
-// Shorten URL using TinyURL (free API, no key needed)
+// Shorten URL using TinyURL (free API)
 async function shortenUrl(longUrl) {
     try {
         const response = await fetch(`https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`);
         if (response.ok) {
             const shortUrl = await response.text();
-            // Verify it's a valid TinyURL response
             if (shortUrl.startsWith('https://tinyurl.com/')) {
                 return shortUrl;
             }
@@ -83,7 +82,7 @@ async function shortenUrl(longUrl) {
     } catch (error) {
         console.warn('URL shortening failed:', error);
     }
-    return longUrl; // Return original if shortening fails
+    return longUrl;
 }
 
 // Upload PDF to Firebase Storage and get short URL
@@ -92,46 +91,32 @@ export async function uploadPDFAndGetLink(pdfFile, clientName) {
         throw new Error('Firebase no está configurado');
     }
 
-    try {
-        // Upload to Firebase Storage
-        const downloadURL = await uploadPDFToStorage(pdfFile, clientName);
-
-        // Shorten the URL
-        const shortUrl = await shortenUrl(downloadURL);
-
-        return shortUrl;
-    } catch (error) {
-        console.error('Upload error:', error);
-        throw error;
-    }
+    const downloadURL = await uploadPDFToStorage(pdfFile, clientName);
+    const shortUrl = await shortenUrl(downloadURL);
+    return shortUrl;
 }
 
-// Share PDF via WhatsApp with short link
+// Share PDF via WhatsApp with short link (same format as text message)
 export async function sharePDFViaWhatsApp(pdfFile, clientName, clientPhone, advisorProfile) {
-    try {
-        // Upload and get short URL
-        const shortUrl = await uploadPDFAndGetLink(pdfFile, clientName);
+    // Upload and get short URL
+    const shortUrl = await uploadPDFAndGetLink(pdfFile, clientName);
 
-        // Build WhatsApp message with link
-        let msg = `¡Hola *${clientName}*! 👋\n\n`;
-        msg += `📋 Te comparto tu recomendación personalizada de productos Fuxion:\n\n`;
-        msg += `👉 ${shortUrl}\n\n`;
-        msg += `_(Haz clic en el enlace para ver tu PDF)_\n`;
+    // Build WhatsApp message with link (same format as text message but with PDF link)
+    let msg = `¡Hola ${clientName}! 👋\n\n`;
+    msg += `📋 Te comparto tu recomendación personalizada:\n\n`;
+    msg += `👉 ${shortUrl}\n\n`;
+    msg += `_(Haz clic en el enlace para ver tu PDF)_\n`;
 
-        if (advisorProfile?.name) {
-            msg += `\n✨ Asesorado por: *${advisorProfile.name}*`;
-            if (advisorProfile.phone) msg += `\n📱 ${advisorProfile.phone}`;
-        }
-
-        msg += `\n\n_Powered by REXILIENCIA_`;
-
-        // Open WhatsApp directly (location.href opens native app on mobile)
-        const cleanPhone = (clientPhone || '').replace(/[\s\-\(\)\+]/g, '');
-        window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
-
-        return { success: true, url: shortUrl };
-    } catch (error) {
-        console.error('Share error:', error);
-        throw error;
+    if (advisorProfile?.name) {
+        msg += `\n✨ Asesorado por: ${advisorProfile.name}`;
+        if (advisorProfile.phone) msg += `\n📱 ${advisorProfile.phone}`;
     }
+
+    msg += `\n\n_Powered by REXILIENCIA_`;
+
+    // Open WhatsApp directly (same as text message button)
+    const cleanPhone = (clientPhone || '').replace(/[\s\-\(\)\+]/g, '');
+    window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+
+    return { success: true, url: shortUrl };
 }

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Download, Share2, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { MessageCircle, Share2, Home, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { generatePDF, downloadPDF, sharePDFViaWhatsApp } from '../utils/pdfGenerator';
 
 export default function Results() {
@@ -28,20 +28,33 @@ export default function Results() {
     const getImg = (text, color) =>
         `https://placehold.co/400x300/${color}/ffffff?text=${encodeURIComponent(text)}`;
 
-    // Download PDF locally
-    const handleDownload = async () => {
-        setIsGenerating(true);
-        setShareStatus('Generando PDF...');
-        try {
-            const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile.name || 'fuxion'}.pdf`);
-            if (pdfFile) {
-                downloadPDF(pdfFile);
-            }
-        } catch (error) {
-            console.error('Error:', error);
+    // Send WhatsApp directly to client (text only)
+    const handleWhatsApp = () => {
+        let msg = `¡Hola *${profile.name}*! 👋\n\n`;
+        msg += `Te comparto tu recomendación personalizada de productos Fuxion:\n\n`;
+        msg += `🎯 *Objetivo${goals.length > 1 ? 's' : ''}:* ${goals.join(', ')}\n\n`;
+
+        msg += `📋 *Tu Plan de Productos:*\n`;
+        products.forEach((p) => {
+            msg += `\n${p.emoji} *${p.name}*\n`;
+            msg += `   ${p.usage}\n`;
+        });
+
+        if (tips.length > 0) {
+            msg += `\n⚠️ *Nota:* ${tips[0]}\n`;
         }
-        setShareStatus('');
-        setIsGenerating(false);
+
+        if (advisorProfile?.name) {
+            msg += `\n\n✨ Asesorado por: *${advisorProfile.name}*`;
+            if (advisorProfile.phone) msg += `\n📱 ${advisorProfile.phone}`;
+            if (advisorProfile.social) msg += `\n📷 ${advisorProfile.social}`;
+        }
+
+        msg += `\n\n_Powered by REXILIENCIA_`;
+
+        const cleanPhone = (profile.phone || '').replace(/[\s\-\(\)\+]/g, '');
+        const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
+        window.open(url, '_blank');
     };
 
     // Share PDF via WhatsApp with short link
@@ -203,49 +216,35 @@ export default function Results() {
                 </div>
             </div>
 
-            {/* Floating Action Buttons - Simple Layout */}
-            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4">
-                <div className="bg-white rounded-2xl shadow-2xl border border-slate-200 p-4">
-                    {/* Status message */}
-                    {shareStatus && (
-                        <div className="text-center text-sm text-fuxion-blue mb-3 flex items-center justify-center gap-2">
-                            <Loader2 size={16} className="animate-spin" />
-                            {shareStatus}
-                        </div>
-                    )}
+            {/* Floating Action Buttons */}
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex flex-col gap-3 z-50 w-full max-w-sm px-4">
+                {/* Main action: Send to client */}
+                {profile.phone && (
+                    <button
+                        onClick={handleWhatsApp}
+                        className="w-full bg-green-500 text-white font-bold py-4 rounded-full shadow-xl hover:bg-green-600 transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                        <MessageCircle size={22} />
+                        Enviar a {profile.name} por WhatsApp
+                    </button>
+                )}
 
-                    {/* Action Buttons */}
-                    <div className="flex items-center justify-center gap-8">
-                        {/* Download */}
-                        <button
-                            onClick={handleDownload}
-                            disabled={isGenerating}
-                            className="flex flex-col items-center gap-1 text-fuxion-blue hover:opacity-80 transition-opacity disabled:opacity-50"
-                        >
-                            <Download size={24} />
-                            <span className="text-sm font-semibold">Descargar</span>
-                        </button>
-
-                        {/* Divider */}
-                        <div className="h-10 w-px bg-slate-200"></div>
-
-                        {/* Share */}
-                        <button
-                            onClick={handleSharePDF}
-                            disabled={isGenerating}
-                            className="flex flex-col items-center gap-1 text-orange-500 hover:opacity-80 transition-opacity disabled:opacity-50"
-                        >
-                            <Share2 size={24} />
-                            <span className="text-sm font-semibold">Compartir</span>
-                        </button>
-                    </div>
-
-                    {/* Home button */}
+                {/* Secondary actions */}
+                <div className="flex gap-3">
                     <button
                         onClick={() => navigate('/')}
-                        className="w-full mt-4 py-2 text-slate-500 text-sm hover:text-fuxion-blue transition-colors"
+                        className="p-4 bg-white text-slate-700 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
                     >
-                        Ir al inicio
+                        <Home size={24} />
+                    </button>
+
+                    <button
+                        onClick={handleSharePDF}
+                        disabled={isGenerating}
+                        className="flex-1 bg-slate-800 text-white font-bold rounded-full shadow-xl hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
+                    >
+                        {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
+                        Enviar PDF
                     </button>
                 </div>
             </div>
