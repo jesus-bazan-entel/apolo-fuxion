@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, Download, Home, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { MessageCircle, Share2, Home, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
 import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
 
 export default function Results() {
@@ -57,15 +57,41 @@ export default function Results() {
         window.open(url, '_blank');
     };
 
-    const handleDownload = async () => {
+    // Share PDF to client via WhatsApp
+    const handleSharePDF = async () => {
         setIsGenerating(true);
         try {
             const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile.name || 'fuxion'}.pdf`);
             if (pdfFile) {
-                downloadPDF(pdfFile);
+                // Try Web Share API first (works best on mobile)
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+                    await navigator.share({
+                        files: [pdfFile],
+                        title: `Recomendación para ${profile.name}`,
+                        text: `¡Hola ${profile.name}! Te comparto tu plan de productos Fuxion personalizado 📋✨`
+                    });
+                } else {
+                    // Fallback: Download and show instructions
+                    downloadPDF(pdfFile);
+                    if (profile.phone) {
+                        // Open WhatsApp with instructions to share the file
+                        const msg = `¡Hola *${profile.name}*! 📋\n\nTe acabo de enviar tu plan de productos Fuxion personalizado.\n\n👆 *Adjunto el PDF con todos los detalles.*\n\n_Powered by REXILIENCIA_`;
+                        const cleanPhone = (profile.phone || '').replace(/[\s\-\(\)\+]/g, '');
+                        setTimeout(() => {
+                            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
+                        }, 500);
+                    }
+                }
             }
         } catch (error) {
             console.error('Error:', error);
+            // If share fails, just download
+            try {
+                const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile.name || 'fuxion'}.pdf`);
+                if (pdfFile) downloadPDF(pdfFile);
+            } catch (e) {
+                console.error('Download fallback failed:', e);
+            }
         }
         setIsGenerating(false);
     };
@@ -223,12 +249,12 @@ export default function Results() {
                     </button>
 
                     <button
-                        onClick={handleDownload}
+                        onClick={handleSharePDF}
                         disabled={isGenerating}
                         className="flex-1 bg-slate-800 text-white font-bold rounded-full shadow-xl hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                     >
-                        {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
-                        Descargar PDF
+                        {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Share2 size={20} />}
+                        Enviar PDF
                     </button>
                 </div>
             </div>
