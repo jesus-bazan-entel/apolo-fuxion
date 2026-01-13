@@ -2,12 +2,13 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { MessageCircle, Share2, Home, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
-import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
+import { generatePDF, downloadPDF, sharePDFViaWhatsApp } from '../utils/pdfGenerator';
 
 export default function Results() {
     const navigate = useNavigate();
     const { currentConsultation, advisorProfile } = useApp();
     const [isGenerating, setIsGenerating] = useState(false);
+    const [shareStatus, setShareStatus] = useState('');
 
     if (!currentConsultation.results) {
         return (
@@ -27,14 +28,14 @@ export default function Results() {
     const getImg = (text, color) =>
         `https://placehold.co/400x300/${color}/ffffff?text=${encodeURIComponent(text)}`;
 
-    // Send WhatsApp directly to client
+    // Send WhatsApp directly to client (text only)
     const handleWhatsApp = () => {
         let msg = `¡Hola *${profile.name}*! 👋\n\n`;
         msg += `Te comparto tu recomendación personalizada de productos Fuxion:\n\n`;
         msg += `🎯 *Objetivo${goals.length > 1 ? 's' : ''}:* ${goals.join(', ')}\n\n`;
 
         msg += `📋 *Tu Plan de Productos:*\n`;
-        products.forEach((p, i) => {
+        products.forEach((p) => {
             msg += `\n${p.emoji} *${p.name}*\n`;
             msg += `   ${p.usage}\n`;
         });
@@ -51,44 +52,33 @@ export default function Results() {
 
         msg += `\n\n_Powered by REXILIENCIA_`;
 
-        // Clean phone number and open WhatsApp
         const cleanPhone = (profile.phone || '').replace(/[\s\-\(\)\+]/g, '');
         const url = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
         window.open(url, '_blank');
     };
 
-    // Share PDF to client via WhatsApp
+    // Share PDF via WhatsApp with short link
     const handleSharePDF = async () => {
         setIsGenerating(true);
+        setShareStatus('Generando PDF...');
+
         try {
             const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile.name || 'fuxion'}.pdf`);
             if (pdfFile) {
-                // Try Web Share API first (works best on mobile)
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                    await navigator.share({
-                        files: [pdfFile],
-                        title: `Recomendación para ${profile.name}`,
-                        text: `¡Hola ${profile.name}! Te comparto tu plan de productos Fuxion personalizado 📋✨`
-                    });
-                } else {
-                    // Fallback: Download and show instructions
-                    downloadPDF(pdfFile);
-                    if (profile.phone) {
-                        // Open WhatsApp with instructions to share the file
-                        const msg = `¡Hola *${profile.name}*! 📋\n\nTe acabo de enviar tu plan de productos Fuxion personalizado.\n\n👆 *Adjunto el PDF con todos los detalles.*\n\n_Powered by REXILIENCIA_`;
-                        const cleanPhone = (profile.phone || '').replace(/[\s\-\(\)\+]/g, '');
-                        setTimeout(() => {
-                            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-                        }, 500);
-                    }
-                }
+                setShareStatus('Subiendo a la nube...');
+                await sharePDFViaWhatsApp(pdfFile, profile.name, profile.phone, advisorProfile);
+                setShareStatus('');
             }
         } catch (error) {
             console.error('Error:', error);
-            // If share fails, just download
+            setShareStatus('');
+            // Fallback: just download
             try {
                 const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile.name || 'fuxion'}.pdf`);
-                if (pdfFile) downloadPDF(pdfFile);
+                if (pdfFile) {
+                    downloadPDF(pdfFile);
+                    alert('No se pudo subir el PDF. Se ha descargado en tu dispositivo.');
+                }
             } catch (e) {
                 console.error('Download fallback failed:', e);
             }

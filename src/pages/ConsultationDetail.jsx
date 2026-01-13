@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
 import { MessageCircle, Share2, ArrowLeft, AlertTriangle, CheckCircle, Loader2, Calendar, Target, User } from 'lucide-react';
-import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
+import { generatePDF, downloadPDF, sharePDFViaWhatsApp } from '../utils/pdfGenerator';
 
 export default function ConsultationDetail() {
     const navigate = useNavigate();
@@ -10,6 +10,7 @@ export default function ConsultationDetail() {
     const { loadConsultation, advisorProfile } = useApp();
     const [consultation, setConsultation] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
+    const [shareStatus, setShareStatus] = useState('');
 
     useEffect(() => {
         const loaded = loadConsultation(id);
@@ -64,36 +65,28 @@ export default function ConsultationDetail() {
         window.open(url, '_blank');
     };
 
-    // Share PDF directly to client via WhatsApp
+    // Share PDF via WhatsApp with short link
     const handleSharePDF = async () => {
         setIsGenerating(true);
+        setShareStatus('Generando PDF...');
+
         try {
             const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile?.name || 'fuxion'}.pdf`);
             if (pdfFile) {
-                // Try Web Share API first (works best on mobile)
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
-                    await navigator.share({
-                        files: [pdfFile],
-                        title: `Recomendación para ${profile?.name}`,
-                        text: `¡Hola ${profile?.name}! Te comparto tu plan de productos Fuxion personalizado 📋✨`
-                    });
-                } else {
-                    // Fallback: Download and open WhatsApp
-                    downloadPDF(pdfFile);
-                    if (profile?.phone) {
-                        const msg = `¡Hola *${profile?.name}*! 📋\n\nTe acabo de enviar tu plan de productos Fuxion personalizado.\n\n👆 *Adjunto el PDF con todos los detalles.*\n\n_Powered by REXILIENCIA_`;
-                        const cleanPhone = (profile?.phone || '').replace(/[\s\-\(\)\+]/g, '');
-                        setTimeout(() => {
-                            window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`, '_blank');
-                        }, 500);
-                    }
-                }
+                setShareStatus('Subiendo a la nube...');
+                await sharePDFViaWhatsApp(pdfFile, profile?.name, profile?.phone, advisorProfile);
+                setShareStatus('');
             }
         } catch (error) {
             console.error('Error:', error);
+            setShareStatus('');
+            // Fallback: just download
             try {
                 const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile?.name || 'fuxion'}.pdf`);
-                if (pdfFile) downloadPDF(pdfFile);
+                if (pdfFile) {
+                    downloadPDF(pdfFile);
+                    alert('No se pudo subir el PDF. Se ha descargado en tu dispositivo.');
+                }
             } catch (e) {
                 console.error('Download fallback failed:', e);
             }
