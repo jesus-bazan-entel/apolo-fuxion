@@ -1,22 +1,26 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Plus, History, Trash2, ArrowRight, Settings as SettingsIcon } from 'lucide-react';
+import { Plus, History, Trash2, Settings as SettingsIcon, ChevronRight, Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
     const navigate = useNavigate();
-    const { history, setHistory, clearCurrent } = useApp();
+    const { history, deleteConsultation, clearCurrent, loading } = useApp();
 
     const handleStart = () => {
         clearCurrent();
         navigate('/consultation');
     };
 
-    const deleteItem = (id, e) => {
+    const handleViewConsultation = (id) => {
+        navigate(`/history/${id}`);
+    };
+
+    const handleDelete = (id, e) => {
         e.stopPropagation();
-        const newHistory = history.filter(item => item.id !== id);
-        setHistory(newHistory);
-        localStorage.setItem('fuxion_history', JSON.stringify(newHistory));
+        if (confirm('¿Eliminar esta consulta?')) {
+            deleteConsultation(id);
+        }
     };
 
     const quotes = [
@@ -25,6 +29,14 @@ export default function Dashboard() {
         "La salud verdadera viene de la naturaleza."
     ];
     const randomQuote = quotes[Math.floor(Math.random() * quotes.length)];
+
+    if (loading) {
+        return (
+            <div className="flex items-center justify-center py-20">
+                <Loader2 className="animate-spin text-fuxion-blue" size={32} />
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -67,7 +79,7 @@ export default function Dashboard() {
                 <div className="flex items-center justify-between mb-4">
                     <h3 className="font-bold text-slate-700 flex items-center gap-2">
                         <History size={18} />
-                        Recientes
+                        Mis Clientes
                     </h3>
                     <span className="text-xs text-slate-400">{history.length} consultas</span>
                 </div>
@@ -76,30 +88,35 @@ export default function Dashboard() {
                     {history.length === 0 ? (
                         <div className="text-center py-10 opacity-50">
                             <p>No hay consultas recientes</p>
+                            <p className="text-sm">Inicia una nueva consulta para ver tu historial aquí</p>
                         </div>
                     ) : (
                         history.map(item => (
                             <div
                                 key={item.id}
-                                onClick={() => {
-                                    // In a real app, maybe view details. For now, just alert or restore?
-                                    // Let's just restore logic context could be tricky, maybe just viewing result?
-                                    // Simplification: Not implemented fully for this demo
-                                }}
-                                className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:border-fuxion-blue transition-colors cursor-pointer group"
+                                onClick={() => handleViewConsultation(item.id)}
+                                className="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:border-fuxion-blue hover:shadow-md transition-all cursor-pointer group"
                             >
-                                <div>
-                                    <p className="font-bold text-slate-800">{item.profile.name || "Invitado"}</p>
+                                <div className="flex-1">
+                                    <p className="font-bold text-slate-800">{item.profile?.name || "Invitado"}</p>
                                     <p className="text-xs text-slate-500">
                                         {new Date(item.date).toLocaleDateString()} • {item.goal}
                                     </p>
+                                    {item.results?.products && (
+                                        <p className="text-xs text-fuxion-blue mt-1">
+                                            {item.results.products.length} productos recomendados
+                                        </p>
+                                    )}
                                 </div>
-                                <button
-                                    onClick={(e) => deleteItem(item.id, e)}
-                                    className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
-                                >
-                                    <Trash2 size={16} />
-                                </button>
+                                <div className="flex items-center gap-2">
+                                    <button
+                                        onClick={(e) => handleDelete(item.id, e)}
+                                        className="p-2 text-slate-300 hover:text-red-500 hover:bg-red-50 rounded-full transition-colors"
+                                    >
+                                        <Trash2 size={16} />
+                                    </button>
+                                    <ChevronRight size={20} className="text-slate-300 group-hover:text-fuxion-blue transition-colors" />
+                                </div>
                             </div>
                         ))
                     )}

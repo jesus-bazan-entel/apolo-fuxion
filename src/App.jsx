@@ -5,6 +5,7 @@ import Dashboard from './pages/Dashboard';
 import FormWizard from './pages/FormWizard';
 import Results from './pages/Results';
 import Settings from './pages/Settings';
+import ConsultationDetail from './pages/ConsultationDetail';
 import { AppProvider } from './context/AppContext';
 
 function App() {
@@ -17,6 +18,7 @@ function App() {
                         <Route path="/consultation" element={<FormWizard />} />
                         <Route path="/results" element={<Results />} />
                         <Route path="/settings" element={<Settings />} />
+                        <Route path="/history/:id" element={<ConsultationDetail />} />
                     </Routes>
                 </Layout>
             </Router>
