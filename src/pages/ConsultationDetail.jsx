@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, Download, Link2, ArrowLeft, AlertTriangle, CheckCircle, Loader2, Calendar, Target, User } from 'lucide-react';
-import { generatePDF, downloadPDF, uploadPDFAndGetLink } from '../utils/pdfGenerator';
+import { MessageCircle, Download, ArrowLeft, AlertTriangle, CheckCircle, Loader2, Calendar, Target, User } from 'lucide-react';
+import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
 
 export default function ConsultationDetail() {
     const navigate = useNavigate();
@@ -10,8 +10,6 @@ export default function ConsultationDetail() {
     const { loadConsultation, advisorProfile } = useApp();
     const [consultation, setConsultation] = useState(null);
     const [isGenerating, setIsGenerating] = useState(false);
-    const [shareStatus, setShareStatus] = useState('');
-    const [pdfShortUrl, setPdfShortUrl] = useState(null);
 
     useEffect(() => {
         const loaded = loadConsultation(id);
@@ -65,52 +63,18 @@ export default function ConsultationDetail() {
         window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
     };
 
-    // Download PDF + Upload to Firebase + Get short URL
+    // Download PDF only (no cloud upload)
     const handleDownloadPDF = async () => {
         setIsGenerating(true);
-        setShareStatus('Generando PDF...');
-        setPdfShortUrl(null);
-
         try {
             const pdfFile = await generatePDF('pdf-content', `recomendacion-${profile?.name || 'fuxion'}.pdf`);
             if (pdfFile) {
                 downloadPDF(pdfFile);
-
-                setShareStatus('Subiendo a la nube...');
-                try {
-                    const shortUrl = await uploadPDFAndGetLink(pdfFile, profile?.name);
-                    setPdfShortUrl(shortUrl);
-                    setShareStatus('¡Listo!');
-                } catch (uploadError) {
-                    console.warn('Upload failed:', uploadError);
-                    setShareStatus('Descargado (sin link)');
-                }
             }
         } catch (error) {
-            console.error('Error:', error);
-            setShareStatus('Error');
+            console.error('Error generating PDF:', error);
         }
         setIsGenerating(false);
-    };
-
-    // Send short URL via WhatsApp
-    const handleSendLink = () => {
-        if (!pdfShortUrl) return;
-
-        let msg = `¡Hola ${profile?.name}! 👋\n\n`;
-        msg += `📋 Te comparto tu recomendación personalizada:\n\n`;
-        msg += `👉 ${pdfShortUrl}\n\n`;
-        msg += `_(Haz clic en el enlace para ver tu PDF)_\n`;
-
-        if (advisorProfile?.name) {
-            msg += `\n✨ Asesorado por: ${advisorProfile.name}`;
-            if (advisorProfile.phone) msg += `\n📱 ${advisorProfile.phone}`;
-        }
-
-        msg += `\n\n_Powered by REXILIENCIA_`;
-
-        const cleanPhone = (profile?.phone || '').replace(/[\s\-\(\)\+]/g, '');
-        window.location.href = `https://wa.me/${cleanPhone}?text=${encodeURIComponent(msg)}`;
     };
 
     return (
@@ -267,23 +231,13 @@ export default function ConsultationDetail() {
                     </button>
                 )}
 
-                {pdfShortUrl && profile?.phone && (
-                    <button
-                        onClick={handleSendLink}
-                        className="w-full bg-blue-500 text-white font-bold py-3 rounded-full shadow-xl hover:bg-blue-600 transition-all active:scale-95 flex items-center justify-center gap-2 animate-pulse"
-                    >
-                        <Link2 size={20} />
-                        Enviar Link del PDF
-                    </button>
-                )}
-
                 <button
                     onClick={handleDownloadPDF}
                     disabled={isGenerating}
                     className="w-full bg-slate-800 text-white font-bold py-3 rounded-full shadow-xl hover:bg-slate-700 transition-all active:scale-95 flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                     {isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Download size={20} />}
-                    {shareStatus || 'Descargar PDF'}
+                    Descargar PDF
                 </button>
             </div>
         </div>
