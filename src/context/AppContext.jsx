@@ -37,6 +37,12 @@ export function AppProvider({ children }) {
     };
 
     const saveConsultation = (resultData) => {
+        // Update current valid state immediately so UI can update
+        setCurrentConsultation(prev => ({
+            ...prev,
+            results: resultData
+        }));
+
         const newItem = {
             id: Date.now(),
             date: new Date().toISOString(),
