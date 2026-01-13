@@ -8,22 +8,24 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
+      includeAssets: ['logo.jpg'],
       manifest: {
-        name: 'Fuxion Dr. Columbus Virtual',
-        short_name: 'Dr. Columbus',
+        name: 'REXILIENCIA - Fuxion',
+        short_name: 'REXILIENCIA',
         description: 'Asistente Virtual para recomendación de productos Fuxion',
-        theme_color: '#ffffff',
+        theme_color: '#E65100',
+        background_color: '#ffffff',
+        display: 'standalone',
         icons: [
           {
-            src: 'pwa-192x192.png',
+            src: 'logo.jpg',
             sizes: '192x192',
-            type: 'image/png'
+            type: 'image/jpeg'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'logo.jpg',
             sizes: '512x512',
-            type: 'image/png'
+            type: 'image/jpeg'
           }
         ]
       }

@@ -62,7 +62,7 @@ export default function Results() {
                 {/* Header */}
                 <div className="text-center mb-6 pb-4 border-b border-slate-200">
                     <h1 className="text-2xl font-bold bg-gradient-to-r from-fuxion-blue to-fuxion-teal bg-clip-text text-transparent">
-                        Dr. Columbus Virtual
+                        REXILIENCIA
                     </h1>
                     <p className="text-slate-500 text-sm">Recomendación Nutracéutica Personalizada</p>
                 </div>
@@ -80,7 +80,7 @@ export default function Results() {
                         <div className="flex gap-2 items-start">
                             <AlertTriangle className="text-amber-600 shrink-0 mt-1" size={18} />
                             <div>
-                                <p className="font-bold text-amber-800 text-sm mb-2">Nota del Dr. Columbus:</p>
+                                <p className="font-bold text-amber-800 text-sm mb-2">Nota Importante:</p>
                                 {tips.map((t, i) => (
                                     <p key={i} className="text-amber-700 text-sm">{t}</p>
                                 ))}
