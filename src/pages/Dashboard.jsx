@@ -1,7 +1,7 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { Plus, History, Trash2, Settings as SettingsIcon, ChevronRight, Loader2 } from 'lucide-react';
+import { Plus, History, Trash2, Settings as SettingsIcon, ChevronRight, Loader2, BarChart3, Bell, Calendar } from 'lucide-react';
 
 export default function Dashboard() {
     const navigate = useNavigate();
@@ -43,13 +43,23 @@ export default function Dashboard() {
             {/* Hero Section */}
             <div className="bg-gradient-to-br from-fuxion-blue to-fuxion-teal rounded-2xl p-6 text-white shadow-xl relative overflow-hidden">
 
-                {/* Settings Button */}
-                <button
-                    onClick={() => navigate('/settings')}
-                    className="absolute top-4 right-4 p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors z-20"
-                >
-                    <SettingsIcon size={20} className="text-white" />
-                </button>
+                {/* Quick Actions */}
+                <div className="absolute top-4 right-4 flex gap-2 z-20">
+                    <button
+                        onClick={() => navigate('/analytics')}
+                        className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                        title="Ver Analytics"
+                    >
+                        <BarChart3 size={20} className="text-white" />
+                    </button>
+                    <button
+                        onClick={() => navigate('/settings')}
+                        className="p-2 bg-white/20 hover:bg-white/30 rounded-lg backdrop-blur-sm transition-colors"
+                        title="Configuración"
+                    >
+                        <SettingsIcon size={20} className="text-white" />
+                    </button>
+                </div>
 
                 <div className="relative z-10">
                     <h2 className="text-2xl font-bold mb-2">Hola, Socio Fuxion</h2>
@@ -81,7 +91,25 @@ export default function Dashboard() {
                         <History size={18} />
                         Mis Clientes
                     </h3>
-                    <span className="text-xs text-slate-400">{history.length} consultas</span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => navigate('/analytics')}
+                            className="text-xs text-fuxion-blue hover:underline flex items-center gap-1"
+                        >
+                            <BarChart3 size={14} />
+                            Analytics
+                        </button>
+                        <span className="text-xs text-slate-400">|</span>
+                        <button
+                            onClick={() => navigate('/reminders')}
+                            className="text-xs text-fuxion-blue hover:underline flex items-center gap-1"
+                        >
+                            <Bell size={14} />
+                            Recordatorios
+                        </button>
+                        <span className="text-xs text-slate-400">|</span>
+                        <span className="text-xs text-slate-400">{history.length} consultas</span>
+                    </div>
                 </div>
 
                 <div className="space-y-3">

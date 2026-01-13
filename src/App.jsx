@@ -7,6 +7,8 @@ import Results from './pages/Results';
 import Settings from './pages/Settings';
 import ConsultationDetail from './pages/ConsultationDetail';
 import Login from './pages/Login';
+import Analytics from './pages/Analytics';
+import Reminders from './pages/Reminders';
 import { AppProvider, useApp } from './context/AppContext';
 import { Loader2 } from 'lucide-react';
 
@@ -74,6 +76,16 @@ function AppRoutes() {
             <Route path="/settings" element={
                 <ProtectedRoute>
                     <Layout><Settings /></Layout>
+                </ProtectedRoute>
+            } />
+            <Route path="/analytics" element={
+                <ProtectedRoute>
+                    <Layout><Analytics /></Layout>
+                </ProtectedRoute>
+            } />
+            <Route path="/reminders" element={
+                <ProtectedRoute>
+                    <Layout><Reminders /></Layout>
                 </ProtectedRoute>
             } />
             <Route path="/history/:id" element={

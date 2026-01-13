@@ -4,7 +4,8 @@ import { useApp } from '../context/AppContext';
 import { runLogic } from '../logic/columbusEngine';
 import { generateAIRecommendation, convertAIResponseToResults } from '../services/aiService';
 import { PRODUCTS } from '../data/products';
-import { User, Activity, ShieldAlert, ArrowRight, Check, UserPlus, Phone, Sparkles, Loader2 } from 'lucide-react';
+import { CONSULTATION_TEMPLATES } from '../data/templates';
+import { User, Activity, ShieldAlert, ArrowRight, Check, UserPlus, Phone, Sparkles, Loader2, LayoutTemplate, Edit3 } from 'lucide-react';
 
 export default function FormWizard() {
     const navigate = useNavigate();
@@ -12,6 +13,8 @@ export default function FormWizard() {
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [useAI, setUseAI] = useState(true); // Toggle for AI mode
+    const [showTemplates, setShowTemplates] = useState(false);
+    const [isEditing, setIsEditing] = useState(false);
 
     const updateProfile = (field, value) => {
         setCurrentConsultation(prev => ({
@@ -131,13 +134,88 @@ export default function FormWizard() {
         );
     }
 
+    const applyTemplate = (template) => {
+        setCurrentConsultation(prev => ({
+            ...prev,
+            profile: { ...prev.profile, ...template.profile },
+            goals: template.goals,
+            conditions: template.conditions
+        }));
+        setShowTemplates(false);
+    };
+
+    const startEdit = () => {
+        setIsEditing(true);
+        setStep(1);
+    };
+
     return (
         <div className="py-4">
             {/* Progress Bar */}
-            <div className="flex gap-2 mb-8 px-2">
+            <div className="flex gap-2 mb-4 px-2">
                 {[1, 2, 3].map(i => (
                     <div key={i} className={`h-1.5 flex-1 rounded-full transition-colors ${i <= step ? 'bg-fuxion-blue' : 'bg-slate-200'}`} />
                 ))}
+            </div>
+
+            {/* Template Selection Modal */}
+            {showTemplates && (
+                <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+                    <div className="bg-white rounded-2xl max-w-md w-full max-h-[80vh] overflow-y-auto">
+                        <div className="p-4 border-b border-slate-200 flex items-center justify-between sticky top-0 bg-white">
+                            <h3 className="font-bold text-lg text-slate-800">Plantillas de Consulta</h3>
+                            <button
+                                onClick={() => setShowTemplates(false)}
+                                className="p-2 hover:bg-slate-100 rounded-full"
+                            >
+                                <ArrowRight size={20} className="rotate-180" />
+                            </button>
+                        </div>
+                        <div className="p-4 space-y-3">
+                            {CONSULTATION_TEMPLATES.map(template => (
+                                <button
+                                    key={template.id}
+                                    onClick={() => applyTemplate(template)}
+                                    className="w-full p-4 rounded-xl border border-slate-200 hover:border-fuxion-blue hover:shadow-md transition-all text-left"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div
+                                            className="w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+                                            style={{ backgroundColor: `${template.color}20` }}
+                                        >
+                                            {template.icon}
+                                        </div>
+                                        <div className="flex-1">
+                                            <h4 className="font-bold text-slate-800">{template.name}</h4>
+                                            <p className="text-xs text-slate-500">{template.description}</p>
+                                        </div>
+                                        <ArrowRight size={18} className="text-slate-300" />
+                                    </div>
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {/* Quick Actions Bar */}
+            <div className="flex gap-2 mb-6">
+                <button
+                    onClick={() => setShowTemplates(true)}
+                    className="flex-1 p-3 bg-gradient-to-r from-purple-500 to-pink-500 text-white rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform"
+                >
+                    <LayoutTemplate size={18} />
+                    <span className="font-semibold text-sm">Plantillas</span>
+                </button>
+                {currentConsultation.results && (
+                    <button
+                        onClick={startEdit}
+                        className="flex-1 p-3 bg-gradient-to-r from-blue-500 to-cyan-500 text-white rounded-xl flex items-center justify-center gap-2 shadow-md active:scale-95 transition-transform"
+                    >
+                        <Edit3 size={18} />
+                        <span className="font-semibold text-sm">Editar</span>
+                    </button>
+                )}
             </div>
 
             {step === 1 && (

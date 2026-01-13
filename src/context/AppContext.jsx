@@ -24,6 +24,7 @@ export function AppProvider({ children }) {
         phone: '',
         social: ''
     });
+    const [reminders, setReminders] = useState([]);
     const [user, setUser] = useState(null);
     const [loading, setLoading] = useState(true);
     const [authChecked, setAuthChecked] = useState(false);
@@ -55,6 +56,9 @@ export function AppProvider({ children }) {
         const savedAdvisor = localStorage.getItem('fuxion_advisor');
         if (savedAdvisor) setAdvisorProfile(JSON.parse(savedAdvisor));
 
+        const savedReminders = localStorage.getItem('fuxion_reminders');
+        if (savedReminders) setReminders(JSON.parse(savedReminders));
+
         // Load name from registration if exists
         const savedName = localStorage.getItem('fuxion_advisor_name');
         if (savedName && !advisorProfile.name) {
@@ -81,6 +85,18 @@ export function AppProvider({ children }) {
                 ...doc.data()
             }));
             setHistory(items);
+
+            // Load reminders
+            const remindersQ = query(
+                collection(db, 'users', userId, 'reminders'),
+                orderBy('scheduledDate', 'asc')
+            );
+            const remindersSnapshot = await getDocs(remindersQ);
+            const reminderItems = remindersSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setReminders(reminderItems);
         } catch (error) {
             console.error('Error loading user data:', error);
             loadFromLocalStorage();
@@ -154,6 +170,39 @@ export function AppProvider({ children }) {
         localStorage.setItem('fuxion_history', JSON.stringify(newHistory));
     };
 
+    const updateConsultation = async (id, updatedData) => {
+        const consultationIndex = history.findIndex(item => item.id === id);
+        if (consultationIndex === -1) return null;
+
+        const updatedConsultation = {
+            ...history[consultationIndex],
+            ...updatedData,
+            date: new Date().toISOString() // Update timestamp
+        };
+
+        // Update in Firebase if logged in
+        if (user && isFirebaseConfigured()) {
+            try {
+                await setDoc(doc(db, 'users', user.uid, 'consultations', id), updatedConsultation);
+            } catch (error) {
+                console.error('Error updating in Firebase:', error);
+            }
+        }
+
+        // Update local state
+        const newHistory = [...history];
+        newHistory[consultationIndex] = updatedConsultation;
+        setHistory(newHistory);
+        localStorage.setItem('fuxion_history', JSON.stringify(newHistory));
+
+        // Update current consultation if it's the one being edited
+        if (currentConsultation.id === id) {
+            setCurrentConsultation(updatedConsultation);
+        }
+
+        return updatedConsultation;
+    };
+
     const loadConsultation = (id) => {
         const consultation = history.find(item => item.id === id);
         if (consultation) {
@@ -173,11 +222,63 @@ export function AppProvider({ children }) {
         });
     };
 
+    const addReminder = async (reminder) => {
+        const newReminders = [...reminders, reminder];
+        setReminders(newReminders);
+        localStorage.setItem('fuxion_reminders', JSON.stringify(newReminders));
+
+        // Save to Firebase if logged in
+        if (user && isFirebaseConfigured()) {
+            try {
+                await addDoc(collection(db, 'users', user.uid, 'reminders'), reminder);
+            } catch (error) {
+                console.error('Error saving reminder to Firebase:', error);
+            }
+        }
+
+        return reminder;
+    };
+
+    const updateReminder = async (reminderId, updates) => {
+        const newReminders = reminders.map(r =>
+            r.id === reminderId ? { ...r, ...updates } : r
+        );
+        setReminders(newReminders);
+        localStorage.setItem('fuxion_reminders', JSON.stringify(newReminders));
+
+        // Update in Firebase if logged in
+        if (user && isFirebaseConfigured()) {
+            try {
+                await setDoc(doc(db, 'users', user.uid, 'reminders', reminderId),
+                    newReminders.find(r => r.id === reminderId)
+                );
+            } catch (error) {
+                console.error('Error updating reminder in Firebase:', error);
+            }
+        }
+    };
+
+    const deleteReminder = async (reminderId) => {
+        const newReminders = reminders.filter(r => r.id !== reminderId);
+        setReminders(newReminders);
+        localStorage.setItem('fuxion_reminders', JSON.stringify(newReminders));
+
+        // Delete from Firebase if logged in
+        if (user && isFirebaseConfigured()) {
+            try {
+                await deleteDoc(doc(db, 'users', user.uid, 'reminders', reminderId));
+            } catch (error) {
+                console.error('Error deleting reminder from Firebase:', error);
+            }
+        }
+    };
+
     const logout = async () => {
         await firebaseLogout();
         localStorage.removeItem('fuxion_demo_mode');
         setUser(null);
         setHistory([]);
+        setReminders([]);
         setAdvisorProfile({ name: '', phone: '', social: '' });
     };
 
@@ -187,12 +288,17 @@ export function AppProvider({ children }) {
             setCurrentConsultation,
             saveConsultation,
             deleteConsultation,
+            updateConsultation,
             loadConsultation,
             history,
             setHistory,
             clearCurrent,
             advisorProfile,
             saveAdvisorProfile,
+            reminders,
+            addReminder,
+            updateReminder,
+            deleteReminder,
             user,
             loading,
             authChecked,

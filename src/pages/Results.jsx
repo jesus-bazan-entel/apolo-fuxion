@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, Download, Home, AlertTriangle, CheckCircle, Loader2 } from 'lucide-react';
+import { MessageCircle, Download, Home, AlertTriangle, CheckCircle, Loader2, Edit3 } from 'lucide-react';
 import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
 
 export default function Results() {
@@ -220,6 +220,14 @@ export default function Results() {
                         className="p-4 bg-white text-slate-700 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
                     >
                         <Home size={24} />
+                    </button>
+
+                    <button
+                        onClick={() => navigate('/consultation')}
+                        className="p-4 bg-white text-slate-700 rounded-full shadow-lg border border-slate-200 hover:bg-slate-50 transition-all active:scale-95"
+                        title="Editar consulta"
+                    >
+                        <Edit3 size={24} />
                     </button>
 
                     <button
