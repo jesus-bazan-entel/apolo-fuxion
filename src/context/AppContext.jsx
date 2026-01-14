@@ -33,37 +33,45 @@ export function AppProvider({ children }) {
     // Listen to auth state changes
     useEffect(() => {
         const unsubscribe = onAuthChange(async (firebaseUser) => {
-            setUser(firebaseUser);
+            try {
+                setUser(firebaseUser);
 
-            if (firebaseUser && isFirebaseConfigured()) {
-                // User logged in - load their data from Firebase
-                await loadUserData(firebaseUser.uid);
-            } else if (localStorage.getItem('fuxion_demo_mode')) {
-                // Demo mode - use localStorage
-                loadFromLocalStorage();
+                if (firebaseUser && isFirebaseConfigured()) {
+                    // User logged in - load their data from Firebase
+                    await loadUserData(firebaseUser.uid);
+                } else if (localStorage.getItem('fuxion_demo_mode')) {
+                    // Demo mode - use localStorage
+                    loadFromLocalStorage();
+                }
+            } catch (error) {
+                console.error('Auth state change error:', error);
+            } finally {
+                setLoading(false);
+                setAuthChecked(true);
             }
-
-            setLoading(false);
-            setAuthChecked(true);
         });
 
         return () => unsubscribe();
     }, []);
 
     const loadFromLocalStorage = () => {
-        const savedHistory = localStorage.getItem('fuxion_history');
-        if (savedHistory) setHistory(JSON.parse(savedHistory));
+        try {
+            const savedHistory = localStorage.getItem('fuxion_history');
+            if (savedHistory) setHistory(JSON.parse(savedHistory));
 
-        const savedAdvisor = localStorage.getItem('fuxion_advisor');
-        if (savedAdvisor) setAdvisorProfile(JSON.parse(savedAdvisor));
+            const savedAdvisor = localStorage.getItem('fuxion_advisor');
+            if (savedAdvisor) setAdvisorProfile(JSON.parse(savedAdvisor));
 
-        const savedReminders = localStorage.getItem('fuxion_reminders');
-        if (savedReminders) setReminders(JSON.parse(savedReminders));
+            const savedReminders = localStorage.getItem('fuxion_reminders');
+            if (savedReminders) setReminders(JSON.parse(savedReminders));
 
-        // Load name from registration if exists
-        const savedName = localStorage.getItem('fuxion_advisor_name');
-        if (savedName && !advisorProfile.name) {
-            setAdvisorProfile(prev => ({ ...prev, name: savedName }));
+            // Load name from registration if exists
+            const savedName = localStorage.getItem('fuxion_advisor_name');
+            if (savedName && (!advisorProfile || !advisorProfile.name)) {
+                setAdvisorProfile(prev => ({ ...prev, name: savedName }));
+            }
+        } catch (error) {
+            console.error('Local storage load error:', error);
         }
     };
 
