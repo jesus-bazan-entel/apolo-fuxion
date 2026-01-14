@@ -20,6 +20,8 @@ export function AppProvider({ children }) {
     });
 
     const [history, setHistory] = useState([]);
+    const [orders, setOrders] = useState([]);
+    const [clients, setClients] = useState({});
     const [advisorProfile, setAdvisorProfile] = useState({
         name: '',
         phone: '',
@@ -62,6 +64,12 @@ export function AppProvider({ children }) {
             const savedAdvisor = localStorage.getItem('fuxion_advisor');
             if (savedAdvisor) setAdvisorProfile(JSON.parse(savedAdvisor));
 
+            const savedClients = localStorage.getItem('fuxion_clients');
+            if (savedClients) setClients(JSON.parse(savedClients));
+
+            const savedOrders = localStorage.getItem('fuxion_orders');
+            if (savedOrders) setOrders(JSON.parse(savedOrders));
+
             const savedReminders = localStorage.getItem('fuxion_reminders');
             if (savedReminders) setReminders(JSON.parse(savedReminders));
 
@@ -73,6 +81,35 @@ export function AppProvider({ children }) {
         } catch (error) {
             console.error('Local storage load error:', error);
         }
+    };
+
+    const saveClient = async (phone, clientData) => {
+        if (!phone) return;
+
+        const updatedClients = {
+            ...clients,
+            [phone]: {
+                ...clients[phone],
+                ...clientData,
+                lastUpdated: new Date().toISOString()
+            }
+        };
+        setClients(updatedClients);
+        localStorage.setItem('fuxion_clients', JSON.stringify(updatedClients));
+
+        if (user && isFirebaseConfigured()) {
+            try {
+                await setDoc(doc(db, 'users', user.uid, 'clients', phone), updatedClients[phone]);
+            } catch (error) {
+                console.error('Error saving client to Firebase:', error);
+            }
+        }
+    };
+
+    const updateClientRating = async (phone, rating) => {
+        if (!phone) return;
+        const clientData = clients[phone] || {};
+        await saveClient(phone, { ...clientData, rating });
     };
 
     const loadUserData = async (userId) => {
@@ -94,6 +131,26 @@ export function AppProvider({ children }) {
                 ...doc.data()
             }));
             setHistory(items);
+
+            // Load clients
+            const clientsSnapshot = await getDocs(collection(db, 'users', userId, 'clients'));
+            const clientsData = {};
+            clientsSnapshot.docs.forEach(doc => {
+                clientsData[doc.id] = doc.data();
+            });
+            setClients(clientsData);
+
+            // Load orders
+            const ordersQ = query(
+                collection(db, 'users', userId, 'orders'),
+                orderBy('date', 'desc')
+            );
+            const ordersSnapshot = await getDocs(ordersQ);
+            const orderItems = ordersSnapshot.docs.map(doc => ({
+                id: doc.id,
+                ...doc.data()
+            }));
+            setOrders(orderItems);
 
             // Load reminders
             const remindersQ = query(
@@ -162,6 +219,15 @@ export function AppProvider({ children }) {
         setHistory(newHistory);
         localStorage.setItem('fuxion_history', JSON.stringify(newHistory));
 
+        // Update/Save client data
+        if (newItem.profile?.phone) {
+            await saveClient(newItem.profile.phone, {
+                name: newItem.profile.name,
+                age: newItem.profile.age,
+                gender: newItem.profile.gender
+            });
+        }
+
         return newItem;
     };
 
@@ -211,6 +277,66 @@ export function AppProvider({ children }) {
         }
 
         return updatedConsultation;
+    };
+
+    const saveOrder = async (orderData) => {
+        const newItem = {
+            id: Date.now().toString(),
+            date: new Date().toISOString(),
+            ...orderData
+        };
+
+        if (user && isFirebaseConfigured()) {
+            try {
+                const docRef = await addDoc(collection(db, 'users', user.uid, 'orders'), newItem);
+                newItem.id = docRef.id;
+            } catch (error) {
+                console.error('Error saving order to Firebase:', error);
+            }
+        }
+
+        const newOrders = [newItem, ...orders];
+        setOrders(newOrders);
+        localStorage.setItem('fuxion_orders', JSON.stringify(newOrders));
+        return newItem;
+    };
+
+    const deleteOrder = async (id) => {
+        if (user && isFirebaseConfigured()) {
+            try {
+                await deleteDoc(doc(db, 'users', user.uid, 'orders', id));
+            } catch (error) {
+                console.error('Error deleting order from Firebase:', error);
+            }
+        }
+
+        const newOrders = orders.filter(item => item.id !== id);
+        setOrders(newOrders);
+        localStorage.setItem('fuxion_orders', JSON.stringify(newOrders));
+    };
+
+    const updateOrder = async (id, updates) => {
+        const orderIndex = orders.findIndex(item => item.id === id);
+        if (orderIndex === -1) return null;
+
+        const updatedOrder = {
+            ...orders[orderIndex],
+            ...updates
+        };
+
+        if (user && isFirebaseConfigured()) {
+            try {
+                await setDoc(doc(db, 'users', user.uid, 'orders', id), updatedOrder);
+            } catch (error) {
+                console.error('Error updating order in Firebase:', error);
+            }
+        }
+
+        const newOrders = [...orders];
+        newOrders[orderIndex] = updatedOrder;
+        setOrders(newOrders);
+        localStorage.setItem('fuxion_orders', JSON.stringify(newOrders));
+        return updatedOrder;
     };
 
     const loadConsultation = (id) => {
@@ -302,6 +428,13 @@ export function AppProvider({ children }) {
             loadConsultation,
             history,
             setHistory,
+            orders,
+            saveOrder,
+            deleteOrder,
+            updateOrder,
+            clients,
+            saveClient,
+            updateClientRating,
             clearCurrent,
             advisorProfile,
             saveAdvisorProfile,

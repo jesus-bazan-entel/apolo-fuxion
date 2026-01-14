@@ -9,6 +9,7 @@ import ConsultationDetail from './pages/ConsultationDetail';
 import Login from './pages/Login';
 import Analytics from './pages/Analytics';
 import Reminders from './pages/Reminders';
+import OrderForm from './pages/OrderForm';
 import { AppProvider, useApp } from './context/AppContext';
 import { Loader2, AlertTriangle } from 'lucide-react';
 
@@ -133,6 +134,11 @@ function AppRoutes() {
             <Route path="/reminders" element={
                 <ProtectedRoute>
                     <Layout><Reminders /></Layout>
+                </ProtectedRoute>
+            } />
+            <Route path="/order" element={
+                <ProtectedRoute>
+                    <Layout><OrderForm /></Layout>
                 </ProtectedRoute>
             } />
             <Route path="/history/:id" element={

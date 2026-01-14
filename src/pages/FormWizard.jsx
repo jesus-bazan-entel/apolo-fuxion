@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
+import { useEffect } from 'react';
 import { runLogic } from '../logic/columbusEngine';
 import { generateAIRecommendation, convertAIResponseToResults } from '../services/aiService';
 import { PRODUCTS } from '../data/products';
@@ -9,12 +10,31 @@ import { User, Activity, ShieldAlert, ArrowRight, Check, UserPlus, Phone, Sparkl
 
 export default function FormWizard() {
     const navigate = useNavigate();
-    const { currentConsultation, setCurrentConsultation, saveConsultation } = useApp();
+    const { currentConsultation, setCurrentConsultation, saveConsultation, clients } = useApp();
     const [step, setStep] = useState(1);
     const [isLoading, setIsLoading] = useState(false);
     const [useAI, setUseAI] = useState(true); // Toggle for AI mode
     const [showTemplates, setShowTemplates] = useState(false);
     const [isEditing, setIsEditing] = useState(false);
+    const [lastAutoFilledPhone, setLastAutoFilledPhone] = useState('');
+
+    // Auto-fill client data if phone exists
+    useEffect(() => {
+        const phone = currentConsultation.profile.phone;
+        if (phone && phone !== lastAutoFilledPhone && clients[phone]) {
+            const clientData = clients[phone];
+            setCurrentConsultation(prev => ({
+                ...prev,
+                profile: {
+                    ...prev.profile,
+                    name: clientData.name || prev.profile.name,
+                    age: clientData.age || prev.profile.age,
+                    gender: clientData.gender || prev.profile.gender
+                }
+            }));
+            setLastAutoFilledPhone(phone);
+        }
+    }, [currentConsultation.profile.phone, clients, lastAutoFilledPhone, setCurrentConsultation]);
 
     const updateProfile = (field, value) => {
         setCurrentConsultation(prev => ({
