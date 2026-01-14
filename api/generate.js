@@ -100,6 +100,7 @@ Genera una recomendación personalizada para este cliente:
 **Género:** ${profile.gender || 'No especificado'}
 **Objetivos:** ${(profile.goals || [profile.goal]).join(', ')}
 **Condiciones de salud:** ${(profile.conditions || []).join(', ') || 'Ninguna reportada'}
+**Comentarios/Notas:** ${profile.notes || 'Ninguno'}
 
 Recuerda aplicar las reglas de seguridad y la metodología de 3 fases. Responde SOLO con el JSON válido, sin texto adicional.`;
 

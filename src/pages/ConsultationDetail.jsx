@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, Download, ArrowLeft, AlertTriangle, CheckCircle, Loader2, Calendar, Target, User } from 'lucide-react';
+import { MessageCircle, Download, ArrowLeft, AlertTriangle, CheckCircle, Loader2, Calendar, Target, User, MessageSquare } from 'lucide-react';
 import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
 
 export default function ConsultationDetail() {
@@ -126,6 +126,19 @@ export default function ConsultationDetail() {
                                 {tips.map((t, i) => (
                                     <p key={i} className="text-amber-700 text-sm">{t}</p>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Particular Notes */}
+                {consultation.notes && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+                        <div className="flex gap-2 items-start">
+                            <MessageSquare className="text-blue-600 shrink-0 mt-1" size={18} />
+                            <div>
+                                <p className="font-bold text-blue-800 text-sm mb-1">Notas Particulares:</p>
+                                <p className="text-blue-700 text-sm italic">"{consultation.notes}"</p>
                             </div>
                         </div>
                     </div>

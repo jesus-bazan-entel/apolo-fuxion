@@ -5,7 +5,7 @@ import { runLogic } from '../logic/columbusEngine';
 import { generateAIRecommendation, convertAIResponseToResults } from '../services/aiService';
 import { PRODUCTS } from '../data/products';
 import { CONSULTATION_TEMPLATES } from '../data/templates';
-import { User, Activity, ShieldAlert, ArrowRight, Check, UserPlus, Phone, Sparkles, Loader2, LayoutTemplate, Edit3 } from 'lucide-react';
+import { User, Activity, ShieldAlert, ArrowRight, Check, UserPlus, Phone, Sparkles, Loader2, LayoutTemplate, Edit3, MessageSquare } from 'lucide-react';
 
 export default function FormWizard() {
     const navigate = useNavigate();
@@ -20,6 +20,13 @@ export default function FormWizard() {
         setCurrentConsultation(prev => ({
             ...prev,
             profile: { ...prev.profile, [field]: value }
+        }));
+    };
+
+    const updateNotes = (value) => {
+        setCurrentConsultation(prev => ({
+            ...prev,
+            notes: value
         }));
     };
 
@@ -83,7 +90,8 @@ export default function FormWizard() {
             ...currentConsultation.profile,
             goal: goals[0],
             goals: goals,
-            conditions: currentConsultation.conditions
+            conditions: currentConsultation.conditions,
+            notes: currentConsultation.notes
         };
 
         setIsLoading(true);
@@ -381,6 +389,20 @@ export default function FormWizard() {
                                 </button>
                             )
                         })}
+                    </div>
+
+                    {/* Particular Comments / Notes */}
+                    <div className="mt-6">
+                        <label className="block text-sm font-medium text-slate-700 mb-2 flex items-center gap-2">
+                            <MessageSquare size={18} className="text-fuxion-blue" />
+                            Comentarios particulares del cliente
+                        </label>
+                        <textarea
+                            className="w-full p-4 rounded-2xl border border-slate-200 focus:ring-2 focus:ring-fuxion-blue outline-none bg-white min-h-[120px] transition-all text-sm placeholder:text-slate-400"
+                            placeholder="Escribe aquí cualquier detalle adicional, dolencias específicas o metas de bienestar..."
+                            value={currentConsultation.notes || ''}
+                            onChange={e => updateNotes(e.target.value)}
+                        />
                     </div>
 
                     {/* AI Toggle */}

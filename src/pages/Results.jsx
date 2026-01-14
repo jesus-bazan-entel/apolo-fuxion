@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useApp } from '../context/AppContext';
-import { MessageCircle, Download, Home, AlertTriangle, CheckCircle, Loader2, Edit3 } from 'lucide-react';
+import { MessageCircle, Download, Home, AlertTriangle, CheckCircle, Loader2, Edit3, MessageSquare } from 'lucide-react';
 import { generatePDF, downloadPDF } from '../utils/pdfGenerator';
 
 export default function Results() {
@@ -99,6 +99,19 @@ export default function Results() {
                                 {tips.map((t, i) => (
                                     <p key={i} className="text-amber-700 text-sm">{t}</p>
                                 ))}
+                            </div>
+                        </div>
+                    </div>
+                )}
+
+                {/* Particular Notes */}
+                {currentConsultation.notes && (
+                    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 mb-6">
+                        <div className="flex gap-2 items-start">
+                            <MessageSquare className="text-blue-600 shrink-0 mt-1" size={18} />
+                            <div>
+                                <p className="font-bold text-blue-800 text-sm mb-1">Notas Particulares:</p>
+                                <p className="text-blue-700 text-sm italic">"{currentConsultation.notes}"</p>
                             </div>
                         </div>
                     </div>

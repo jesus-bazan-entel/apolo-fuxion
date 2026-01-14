@@ -15,6 +15,7 @@ export function AppProvider({ children }) {
         goal: '',
         goals: [],
         conditions: [],
+        notes: '',
         results: null
     });
 
@@ -131,6 +132,7 @@ export function AppProvider({ children }) {
             goal: currentConsultation.goal,
             goals: currentConsultation.goals,
             conditions: currentConsultation.conditions,
+            notes: currentConsultation.notes,
             results: resultData
         };
 
